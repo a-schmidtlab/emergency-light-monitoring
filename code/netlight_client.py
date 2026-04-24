@@ -2,6 +2,7 @@
 Client fuer NETLIGHT Sicherheitsbeleuchtungssysteme.
 Fragt die drei AJAX-Endpoints ab und liefert ein DeviceSnapshot-Objekt.
 """
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -10,6 +11,27 @@ from typing import Optional, List
 import requests
 
 log = logging.getLogger(__name__)
+
+
+def _describe_error(exc: Exception, attempts: int, timeout: int) -> str:
+    """Kurze, fuer Endanwender verstaendliche Fehlerbeschreibung.
+
+    Die rohe Exception wird separat ins systemd-Journal geloggt; die Mail
+    bekommt nur diesen einzeiligen, sprechenden Text.
+    """
+    if isinstance(exc, (requests.exceptions.ConnectTimeout,
+                        requests.exceptions.ReadTimeout)):
+        return (f"Geraet antwortet nicht (Timeout {timeout} s, "
+                f"{attempts} Versuch{'e' if attempts != 1 else ''}).")
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return (f"Verbindung zum Geraet nicht moeglich "
+                f"({attempts} Versuch{'e' if attempts != 1 else ''} fehlgeschlagen).")
+    if isinstance(exc, requests.exceptions.HTTPError):
+        code = getattr(getattr(exc, "response", None), "status_code", "?")
+        return f"Geraet antwortet mit Fehler-Status HTTP {code}."
+    if isinstance(exc, (json.JSONDecodeError, ValueError)):
+        return "Antwort des Geraets konnte nicht ausgewertet werden (kein gueltiges JSON)."
+    return f"Unerwarteter Fehler beim Abruf ({type(exc).__name__})."
 
 # Mapping Array-Index -> Bedeutung, abgeleitet aus index.php + JS-Code.
 # Das Array hat 10 Elemente, aber die Seite nutzt nur diese Positionen:
@@ -113,7 +135,8 @@ class NetlightClient:
                                         data={"para1": "start"})
             snap.reachable = True
         except Exception as e:
-            snap.error = f"{type(e).__name__}: {e}"
-            log.error("Geraet %s (%s) nicht erreichbar: %s",
-                      name, base_url, snap.error)
+            snap.error = _describe_error(e, self.attempts, self.timeout)
+            # Menschenlesbar in die Mail, rohe Details NUR ins Log:
+            log.error("Geraet %s (%s) nicht erreichbar: %s (Original: %s: %s)",
+                      name, base_url, snap.error, type(e).__name__, e)
         return snap
