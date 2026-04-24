@@ -1,3 +1,16 @@
+# Notlicht-Monitor - Emergency Light Monitoring Tool
+# Copyright (C) 2026 Axel Schmidt <axel@schmidtlab.net>
+# SPDX-License-Identifier: LicenseRef-Notlicht-Monitor-NC
+#
+# Nicht-kommerzielle Nutzung ist frei gestattet. Kommerzielle Nutzung bedarf
+# der schriftlichen Zustimmung des Autors. Volle Bedingungen: siehe LICENSE.
+#
+# HAFTUNGSAUSSCHLUSS: Keine Gewaehrleistung. Diese Software stellt nur ein
+# zusaetzliches informationelles Monitoring dar und ERSETZT NICHT die
+# gesetzlich vorgeschriebenen Pruefungen der Notlichtanlage durch
+# Fachpersonal (DIN EN 50172, VDE 0108, DIN EN 50171, VDE 0100-560,
+# DGUV Vorschrift 3 u. a.). Die Verantwortung fuer die ordnungsgemaesse
+# Funktion verbleibt beim Betreiber.
 """
 Persistenter State in JSON:
 - letzter bekannter OK/Stoerung-Status pro Geraet (fuer Alarm-Diff)

@@ -1,0 +1,147 @@
+Notlicht-Monitor (Emergency Light Monitoring Tool)
+Copyright (C) 2026 Axel Schmidt <axel@schmidtlab.net>
+
+================================================================================
+DEUTSCH
+================================================================================
+
+Nutzungsbedingungen (nicht-kommerzielle Nutzung)
+
+1. Geltungsbereich
+   Diese Lizenz regelt die Nutzung, Vervielfaeltigung, Veraenderung und
+   Weitergabe der Software "Notlicht-Monitor" (nachfolgend "die Software")
+   einschliesslich der zugehoerigen Dokumentation, Konfigurationsvorlagen
+   und Hilfsskripte.
+
+2. Erlaubte Nutzung
+   Die Software darf frei verwendet, kopiert, veraendert und weitergegeben
+   werden, sofern alle folgenden Bedingungen erfuellt sind:
+
+   a) Die Nutzung erfolgt ausschliesslich NICHT-KOMMERZIELL. Als
+      nicht-kommerziell gilt insbesondere:
+      - Die Nutzung durch den Betreiber einer Immobilie zur Ueberwachung
+        der dort installierten eigenen Notlichtanlagen.
+      - Die Nutzung fuer private, ausbildungsbezogene oder
+        wissenschaftliche Zwecke.
+      - Die Nutzung durch gemeinnuetzige Organisationen zur Ueberwachung
+        eigener Liegenschaften.
+
+   b) Bei der Weitergabe der Software (veraendert oder unveraendert) muss
+      dieser Lizenztext einschliesslich des Copyright-Vermerks
+      vollstaendig beigelegt werden.
+
+   c) Bei veroeffentlichten Veraenderungen muss kenntlich gemacht werden,
+      dass es sich um eine veraenderte Version handelt.
+
+3. Kommerzielle Nutzung
+   Als kommerzielle Nutzung gilt insbesondere jede Nutzung, die primaer
+   darauf gerichtet ist, einen geldwerten Vorteil zu erzielen. Beispiele:
+
+   - Die Bereitstellung als Dienstleistung (Software-as-a-Service) gegen
+     Entgelt.
+   - Die Einbindung der Software in ein kostenpflichtiges Produkt oder
+     Systemangebot.
+   - Die Verwendung durch ein Wartungsunternehmen zur Ueberwachung
+     fremder Anlagen gegen Rechnung an den Kunden.
+
+   Fuer jede kommerzielle Nutzung ist die vorherige schriftliche
+   Erlaubnis des Autors erforderlich.
+
+   Kontakt: axel@schmidtlab.net
+
+4. Haftungsausschluss
+
+   DIE SOFTWARE WIRD "WIE SIE IST" BEREITGESTELLT, OHNE JEGLICHE
+   GEWAEHRLEISTUNG - WEDER AUSDRUECKLICH NOCH STILLSCHWEIGEND. DAZU
+   ZAEHLEN INSBESONDERE DIE IMPLIZIERTEN GEWAEHRLEISTUNGEN DER
+   MARKTGAENGIGKEIT, DER EIGNUNG FUER EINEN BESTIMMTEN ZWECK UND DER
+   NICHTVERLETZUNG VON RECHTEN DRITTER.
+
+   ** BESONDERER HINWEIS ZUR SICHERHEITSRELEVANZ **
+
+   Eine Notlichtanlage (Sicherheitsbeleuchtungsanlage) ist eine
+   sicherheitsrelevante Einrichtung des vorbeugenden Brandschutzes.
+   Diese Software stellt AUSSCHLIESSLICH EIN ZUSAETZLICHES INFORMATIONELLES
+   MONITORING dar. Sie ERSETZT AUSDRUECKLICH NICHT die gesetzlich
+   vorgeschriebenen Pruefungen durch Fachpersonal nach:
+
+   - DIN EN 50172 / DIN VDE 0108-100 (Anwendung von
+     Sicherheitsbeleuchtungsanlagen)
+   - DIN EN 50171 (Zentrale Stromversorgungssysteme)
+   - DIN VDE 0100-560 (Errichten von Niederspannungsanlagen,
+     Sicherheitsanlagen)
+   - DGUV Vorschrift 3 (Pruefung elektrischer Anlagen und Betriebsmittel)
+   - ArbStaettV § 4 Abs. 3 und Anhang 2.3
+     (Arbeitsstaettenverordnung, Sicherheitsbeleuchtung)
+   - ggf. weiteren einschlaegigen Normen, Vorschriften und oertlichen
+     Bestimmungen.
+
+   Die Verantwortung fuer die ordnungsgemaesse Funktion, Wartung,
+   Pruefung und Dokumentation der Anlage verbleibt vollumfaenglich beim
+   Betreiber. Der Autor uebernimmt keinerlei Haftung fuer Schaeden, die
+   aus der Nutzung dieser Software, aus fehlerhaften oder ausbleibenden
+   Meldungen, aus falsch konfigurierten Empfaengern oder aus anderen
+   Ursachen im Zusammenhang mit der Software entstehen.
+
+================================================================================
+ENGLISH (non-binding translation; in case of doubt the German version applies)
+================================================================================
+
+Terms of Use (Non-Commercial)
+
+1. Scope
+   This license governs the use, reproduction, modification, and
+   distribution of the "Notlicht-Monitor" software (the "Software"),
+   including associated documentation, configuration templates, and
+   helper scripts.
+
+2. Permitted Use
+   The Software may be used, copied, modified, and distributed freely,
+   provided all of the following conditions are met:
+
+   a) Use is strictly NON-COMMERCIAL, including but not limited to:
+      - Use by the operator of a property to monitor their own emergency
+        lighting systems installed there.
+      - Use for private, educational, or scientific purposes.
+      - Use by non-profit organizations to monitor their own facilities.
+
+   b) Any distribution of the Software, modified or unmodified, must
+      include this license notice in full, including the copyright
+      statement.
+
+   c) Modified versions, if published, must be clearly marked as such.
+
+3. Commercial Use
+   Commercial use includes, in particular, any use primarily aimed at
+   obtaining a monetary benefit. Examples:
+
+   - Providing the Software as a service for payment.
+   - Incorporating the Software into a paid product or system offering.
+   - Use by a maintenance company to monitor third-party installations
+     for billed services.
+
+   Any commercial use requires prior written permission from the author.
+
+   Contact: axel@schmidtlab.net
+
+4. Disclaimer of Warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+
+   ** SAFETY-CRITICAL USE NOTICE **
+
+   An emergency lighting system is a safety-critical installation for
+   fire prevention. This software constitutes SUPPLEMENTARY INFORMATIONAL
+   MONITORING ONLY. It DOES NOT REPLACE the legally mandated inspections
+   by qualified personnel required by applicable national and European
+   standards (in Germany e.g. DIN EN 50172 / VDE 0108, DIN EN 50171,
+   DIN VDE 0100-560, DGUV Vorschrift 3, ArbStaettV).
+
+   Responsibility for proper function, maintenance, inspection, and
+   documentation of the installation remains entirely with the operator.
+   The author assumes no liability whatsoever for damages arising from
+   the use of this Software, from erroneous or missing alerts, from
+   incorrectly configured recipients, or from any other cause related
+   to the Software.
