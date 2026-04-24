@@ -1,5 +1,5 @@
 Notlicht-Monitor (Emergency Light Monitoring Tool)
-Copyright (C) 2026 Axel Schmidt <axel@schmidtlab.net>
+Copyright (C) 2026 Axel Schmidt
 
 ================================================================================
 DEUTSCH
@@ -47,7 +47,8 @@ Nutzungsbedingungen (nicht-kommerzielle Nutzung)
    Fuer jede kommerzielle Nutzung ist die vorherige schriftliche
    Erlaubnis des Autors erforderlich.
 
-   Kontakt: axel@schmidtlab.net
+   Kontakt: ueber GitHub-Issues im Repository
+   (https://github.com/a-schmidtlab/emergency-light-monitoring/issues)
 
 4. Haftungsausschluss
 
@@ -122,7 +123,8 @@ Terms of Use (Non-Commercial)
 
    Any commercial use requires prior written permission from the author.
 
-   Contact: axel@schmidtlab.net
+   Contact: via GitHub issues in the repository
+   (https://github.com/a-schmidtlab/emergency-light-monitoring/issues)
 
 4. Disclaimer of Warranty
 

@@ -1,5 +1,5 @@
 # Notlicht-Monitor - Emergency Light Monitoring Tool
-# Copyright (C) 2026 Axel Schmidt <axel@schmidtlab.net>
+# Copyright (C) 2026 Axel Schmidt
 # SPDX-License-Identifier: LicenseRef-Notlicht-Monitor-NC
 #
 # Nicht-kommerzielle Nutzung ist frei gestattet. Kommerzielle Nutzung bedarf

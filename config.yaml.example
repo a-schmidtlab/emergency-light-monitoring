@@ -5,12 +5,12 @@
 # Empfaenger und die Device-URLs sind auch nicht fuer jeden gedacht.
 
 devices:
-  - name: "Anlage 1 - Treppenhaus"
-    url:  "http://192.168.178.60"
-  - name: "Anlage 2 - Keller"
-    url:  "http://192.168.178.61"
-  - name: "Anlage 3 - Dachgeschoss"
-    url:  "http://192.168.178.62"
+  - name: "Anlage 1"
+    url:  "http://192.0.2.60"
+  - name: "Anlage 2"
+    url:  "http://192.0.2.61"
+  - name: "Anlage 3"
+    url:  "http://192.0.2.62"
 
 http:
   timeout_seconds: 10

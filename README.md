@@ -130,8 +130,8 @@ Damit ist das Tool ein **zusätzliches Frühwarnsystem** zwischen den normgerech
 |---|---|
 | Wöchentlicher Report, alles OK | 🟢 Wochenreport Notlicht - 24.04.2026 |
 | Wöchentlicher Report, Störung vorhanden | 🔴 Wochenreport Notlicht - 24.04.2026 |
-| Anlage wechselt OK → Störung | 🔴 ALARM Notlicht - Haus 1 |
-| Anlage wechselt Störung → OK | 🟢 Entwarnung Notlicht - Haus 1 |
+| Anlage wechselt OK → Störung | 🔴 ALARM Notlicht - Anlage 1 |
+| Anlage wechselt Störung → OK | 🟢 Entwarnung Notlicht - Anlage 1 |
 
 **Kein Mail-Spam:** Bei durchgehender Störung gibt es genau *eine* Alarmmail, keine Wiederholungen. Erst wenn die Anlage wieder OK war und erneut in Störung geht, kommt die nächste Alarmmail.
 
@@ -317,10 +317,10 @@ Beim Start sucht das Programm automatisch nach `secrets.yaml` **neben** der Haup
 - **`devices`** — Liste der Anlagen (Name + URL).
   ```yaml
   devices:
-    - name: "Haus 1"
-      url: "http://192.168.178.60"
-    - name: "Haus 2"
-      url: "http://192.168.178.61"
+    - name: "Anlage 1"
+      url: "http://192.0.2.60"
+    - name: "Anlage 2"
+      url: "http://192.0.2.61"
   ```
 - **`smtp`** — Mailserver-Zugang (Host, Port, SSL/STARTTLS, User, Absender). **Passwort bewusst nicht hier**, sondern in `secrets.yaml`.
 - **`recipients`** — Verteilerliste (ein oder mehrere Empfänger).
@@ -508,7 +508,7 @@ Ausdrücklich nicht im Projektumfang:
 
 ### 10.5 Annahmen
 
-- **A-1**: Das Format der AJAX-Antworten ist über alle Anlagen identisch. Verifiziert für 192.168.178.60 am 24.04.2026.
+- **A-1**: Das Format der AJAX-Antworten ist über alle Anlagen identisch. Verifiziert für das getestete Exemplar am 24.04.2026.
 - **A-2**: Die AJAX-Endpoints sind ohne Session-Cookie nutzbar. Verifiziert per curl-Test.
 - **A-3**: Die Anlagen liefern konsistente Status-Codes (`green`, `yellow`, `red`, leer). Aus Seitencode abgeleitet.
 - **A-4**: Der eigene Mailserver akzeptiert SMTP-SSL-Einlieferung auf Port 465.
@@ -591,7 +591,7 @@ Stateful Python-Batchjob, alle 15 Minuten von einem systemd-Timer gestartet. Der
 
 #### `POST /ajax_anlagenstatus.php`
 
-**Response** (Beispiel aus 192.168.178.60):
+**Response** (Beispiel):
 ```json
 ["green","green","","","","","","","",""]
 ```
@@ -667,7 +667,7 @@ Datei `/var/lib/notlicht-monitor/state.json`:
 {
   "last_weekly_report": "2026-04-24T16:07:15.123456+02:00",
   "devices": {
-    "Haus 1": {
+    "Anlage 1": {
       "was_ok": true,
       "last_check": "2026-04-24T16:22:00.000000+02:00"
     }
@@ -772,7 +772,7 @@ Dieses Projekt steht unter einer **nicht-kommerziellen Nutzungslizenz** („Notl
 **Kurzfassung:**
 
 - **Nicht-kommerzielle Nutzung ist frei gestattet** — inklusive Nutzung, Kopie, Änderung und Weitergabe. Dazu zählt insbesondere die Nutzung durch den Betreiber einer Immobilie zur Überwachung eigener Notlichtanlagen sowie die private, ausbildungsbezogene, wissenschaftliche oder gemeinnützige Nutzung.
-- **Kommerzielle Nutzung** (z. B. durch einen Wartungsdienstleister, der das Monitoring seinen Kunden in Rechnung stellt) bedarf der **vorherigen schriftlichen Zustimmung** des Autors.
+- **Kommerzielle Nutzung** (z. B. durch einen Wartungsdienstleister, der das Monitoring seinen Kunden in Rechnung stellt) bedarf der **vorherigen schriftlichen Zustimmung** des Autors. Anfragen bitte als Issue im GitHub-Repository.
 - Bei jeder Weitergabe muss dieser Hinweis einschließlich Copyright erhalten bleiben.
 
 ### Haftungsausschluss
@@ -803,6 +803,8 @@ Wer dieses Tool einsetzt, tut dies in eigener Verantwortung und **zusätzlich**,
 ## 15. Autor
 
 **Axel Schmidt**
-Kontakt für kommerzielle Nutzung oder Rückfragen: `axel@schmidtlab.net`
+
+Rückfragen, Fehlerberichte und Anfragen für kommerzielle Nutzung bitte als Issue im Repository:
+[`github.com/a-schmidtlab/emergency-light-monitoring/issues`](https://github.com/a-schmidtlab/emergency-light-monitoring/issues)
 
 ---
