@@ -125,16 +125,29 @@ ssh notlicht-pi 'sudo nano /etc/notlicht-monitor/config.yaml'
 
 ## Konfiguration in Kürze
 
-Alle Einstellungen in `/etc/notlicht-monitor/config.yaml`:
+Zwei Dateien, beide im Verzeichnis `/etc/notlicht-monitor/`:
+
+| Datei | Inhalt | Rechte |
+|---|---|---|
+| `config.yaml` | Alles außer Passwörtern | 600, owner: `notlicht` |
+| `secrets.yaml` | SMTP-Passwort (und ggf. weitere Secrets) | 600, owner: `notlicht` |
+
+**Warum zwei Dateien?** Damit `config.yaml` ohne Bedenken weitergegeben werden kann (Support, Backup, Versionskontrolle) — nur `secrets.yaml` enthält wirklich sensible Daten. Beim Start wird `secrets.yaml` automatisch über die Hauptconfig gemerged, sofern sie neben der `config.yaml` existiert (Override via `--secrets PATH`).
+
+Abschnitte in `config.yaml`:
 
 - **`devices`** – Liste der Anlagen (Name + URL)
-- **`smtp`** – Mailserver-Zugang (Host, Port, SSL, Login, Absender)
+- **`smtp`** – Mailserver-Zugang (Host, Port, SSL, Login, Absender). Passwort bewusst **nicht** hier.
 - **`recipients`** – Verteilerliste
 - **`mail`** – Betreffvorlagen, Standardtext, eigener Text, Fußtext
 - **`schedule`** – Wochentag und Uhrzeit des Reports
 - **`http`** – Timeout und Retry-Parameter
 
-Details: siehe Kommentare in `config.yaml.example`.
+Abschnitte in `secrets.yaml`:
+
+- **`smtp.password`** – SMTP-Passwort
+
+Vorlagen: `config.yaml.example` und `secrets.yaml.example`. Details in den Kommentaren dort.
 
 ### Mailtext anpassen
 
@@ -173,6 +186,7 @@ sudo rm /var/lib/notlicht-monitor/state.json
 | Parameter | Wirkung |
 |---|---|
 | `--config PATH` | Abweichende Config-Datei |
+| `--secrets PATH` | Abweichende Secrets-Datei (Default: `secrets.yaml` neben der Config) |
 | `--state PATH` | Abweichende State-Datei |
 | `--force-weekly` | Wochenreport jetzt senden, unabhängig vom Zeitplan |
 | `--dry-run` | Mails nicht senden, nur auf stdout ausgeben |

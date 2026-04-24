@@ -46,6 +46,8 @@ def should_send_weekly(state: State, cfg: dict, now: datetime,
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="/etc/notlicht-monitor/config.yaml")
+    parser.add_argument("--secrets", default=None,
+                        help="Pfad zu secrets.yaml. Default: neben --config.")
     parser.add_argument("--state",  default="/var/lib/notlicht-monitor/state.json")
     parser.add_argument("--force-weekly", action="store_true",
                         help="Wochenreport jetzt senden (Test).")
@@ -56,7 +58,8 @@ def main() -> int:
     setup_logging()
     log = logging.getLogger("notlicht-monitor")
 
-    cfg = load_config(Path(args.config))
+    secrets_path = Path(args.secrets) if args.secrets else None
+    cfg = load_config(Path(args.config), secrets_path)
     state = State(Path(args.state))
     now = datetime.now().astimezone()
 

@@ -28,17 +28,26 @@ sudo mkdir -p /var/lib/notlicht-monitor
 sudo chown notlicht:notlicht /var/lib/notlicht-monitor
 ```
 
-## 4. Config
+## 4. Config + Secrets
 
 ```bash
 sudo mkdir -p /etc/notlicht-monitor
+
+# Haupt-Config (ohne Passwort)
 sudo cp config.yaml.example /etc/notlicht-monitor/config.yaml
 sudo chown notlicht:notlicht /etc/notlicht-monitor/config.yaml
 sudo chmod 600 /etc/notlicht-monitor/config.yaml
 sudo nano /etc/notlicht-monitor/config.yaml
+
+# Secrets (SMTP-Passwort)
+sudo cp secrets.yaml.example /etc/notlicht-monitor/secrets.yaml
+sudo chown notlicht:notlicht /etc/notlicht-monitor/secrets.yaml
+sudo chmod 600 /etc/notlicht-monitor/secrets.yaml
+sudo nano /etc/notlicht-monitor/secrets.yaml
 ```
 
-In der Config anpassen: `devices`, `smtp.*`, `recipients`, ggf. `mail.*`.
+In `config.yaml` anpassen: `devices`, `smtp.*` (ohne Passwort), `recipients`, ggf. `mail.*`.
+In `secrets.yaml` nur: `smtp.password`. Die secrets werden beim Start automatisch ueber die Hauptconfig gemerged.
 
 ## 5. Testlauf (ohne Mailversand)
 

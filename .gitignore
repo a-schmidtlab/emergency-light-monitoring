@@ -13,11 +13,13 @@ state.json
 .mypy_cache/
 .pytest_cache/
 
-# Eine echte, befuellte Config mit SMTP-Passwort darf NIE ins Repo.
-# Nur config.yaml.example wird getrackt.
+# Echte Configs und Secrets duerfen NIE ins Repo.
+# Getrackt werden nur die *.example-Templates.
 config.yaml
+secrets.yaml
 *.yaml
 !config.yaml.example
+!secrets.yaml.example
 
 # Editor/OS-Kram
 .vscode/

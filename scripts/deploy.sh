@@ -33,6 +33,7 @@ rsync -a --delete --info=stats1 \
   --exclude='*.pyc' \
   --exclude='state.json' \
   --exclude='config.yaml' \
+  --exclude='secrets.yaml' \
   ./ "$SSH_HOST:$REMOTE_STAGE/"
 
 echo
@@ -55,4 +56,4 @@ echo "Timer-Status:    ssh $SSH_HOST 'systemctl list-timers notlicht-monitor.tim
 echo "Letzter Lauf:    ssh $SSH_HOST 'systemctl status notlicht-monitor.service --no-pager'"
 echo "Live-Log:        scripts/tail-log.sh"
 echo
-echo "Hinweis: /etc/notlicht-monitor/config.yaml bleibt unveraendert."
+echo "Hinweis: /etc/notlicht-monitor/config.yaml und secrets.yaml werden NIE ueberschrieben."

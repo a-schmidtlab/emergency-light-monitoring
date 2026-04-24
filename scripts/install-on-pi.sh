@@ -56,13 +56,21 @@ install -m 0644 "$SRC"/systemd/notlicht-monitor.timer   /etc/systemd/system/
 systemctl daemon-reload
 
 echo
-echo ">> [6/6] config.yaml bereitstellen (nur wenn noch keine existiert)"
+echo ">> [6/6] config.yaml und secrets.yaml bereitstellen (nur wenn noch nicht vorhanden)"
 if [[ -f /etc/notlicht-monitor/config.yaml ]]; then
   echo "   /etc/notlicht-monitor/config.yaml existiert - bleibt unveraendert."
 else
   install -m 0600 -o notlicht -g notlicht \
     "$SRC"/config.yaml.example /etc/notlicht-monitor/config.yaml
   echo "   config.yaml aus config.yaml.example erstellt (chmod 600)."
+fi
+
+if [[ -f /etc/notlicht-monitor/secrets.yaml ]]; then
+  echo "   /etc/notlicht-monitor/secrets.yaml existiert - bleibt unveraendert."
+else
+  install -m 0600 -o notlicht -g notlicht \
+    "$SRC"/secrets.yaml.example /etc/notlicht-monitor/secrets.yaml
+  echo "   secrets.yaml aus secrets.yaml.example erstellt (chmod 600)."
 fi
 
 cat <<'EOF'
@@ -74,17 +82,20 @@ Naechste Schritte:
   1) Config befuellen:
        sudo nano /etc/notlicht-monitor/config.yaml
 
-  2) Probelauf ohne Mailversand:
+  2) SMTP-Passwort in secrets.yaml eintragen:
+       sudo nano /etc/notlicht-monitor/secrets.yaml
+
+  3) Probelauf ohne Mailversand:
        sudo -u notlicht python3 /opt/notlicht-monitor/main.py \
            --dry-run --force-weekly
 
-  3) Echter Mailtest:
+  4) Echter Mailtest:
        sudo -u notlicht python3 /opt/notlicht-monitor/main.py --force-weekly
 
-  4) Timer scharfschalten:
+  5) Timer scharfschalten:
        sudo systemctl enable --now notlicht-monitor.timer
 
-  5) Kontrolle:
+  6) Kontrolle:
        systemctl list-timers notlicht-monitor.timer
        journalctl -u notlicht-monitor.service -f
 ==============================================================

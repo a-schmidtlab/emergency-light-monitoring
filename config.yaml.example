@@ -1,5 +1,8 @@
 # /etc/notlicht-monitor/config.yaml
-# Rechte: chmod 600 – enthaelt SMTP-Passwort.
+# Diese Datei ist frei von Passwoertern. Sensible Werte (SMTP-Passwort) stehen
+# in einer separaten Datei secrets.yaml im gleichen Verzeichnis - siehe
+# secrets.yaml.example und README. Trotzdem: Rechte 600 reicht, die Liste der
+# Empfaenger und die Device-URLs sind auch nicht fuer jeden gedacht.
 
 devices:
   - name: "Anlage 1 - Treppenhaus"
@@ -19,7 +22,7 @@ smtp:
   port: 465
   use_ssl: true              # true = SMTPS (Port 465). false = STARTTLS (Port 587).
   username: "notlicht@deinserver.de"
-  password: "CHANGE_ME"
+  # password: hier NICHT eintragen - gehoert nach secrets.yaml.
   from_address: "notlicht@deinserver.de"
   from_name: "Notlicht-Monitor"
 

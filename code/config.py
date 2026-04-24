@@ -1,8 +1,17 @@
 """
 Config laden (YAML), Defaults mergen, minimal validieren.
+
+Secrets liegen bewusst in einer separaten Datei (secrets.yaml), die niemals
+ins Repo gehoert. Ist sie vorhanden, wird sie zuletzt ueber die Config
+gemerged - dort stehen also z.B. smtp.password. Default-Pfad: gleiche
+Verzeichnis wie config.yaml.
 """
+import logging
 from pathlib import Path
+from typing import Optional
 import yaml
+
+log = logging.getLogger(__name__)
 
 
 DEFAULTS = {
@@ -40,13 +49,31 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return base
 
 
-def load_config(path: Path) -> dict:
-    with Path(path).open() as f:
+def load_config(path: Path, secrets_path: Optional[Path] = None) -> dict:
+    path = Path(path)
+    with path.open() as f:
         user = yaml.safe_load(f) or {}
 
     cfg: dict = {}
     _deep_merge(cfg, DEFAULTS)
     _deep_merge(cfg, user)
+
+    # Secrets-Datei daneben suchen (oder expliziten Pfad nehmen) und drueber mergen.
+    # Fehlt die Datei, ist das OK - dann muessen die Werte vollstaendig in config.yaml
+    # stehen (nicht empfohlen fuer Passwoerter).
+    if secrets_path is None:
+        secrets_path = path.parent / "secrets.yaml"
+    secrets_path = Path(secrets_path)
+    if secrets_path.exists():
+        try:
+            with secrets_path.open() as f:
+                secrets = yaml.safe_load(f) or {}
+            if not isinstance(secrets, dict):
+                raise ValueError("secrets.yaml muss ein Mapping sein.")
+            _deep_merge(cfg, secrets)
+            log.info("Secrets geladen aus %s", secrets_path)
+        except (OSError, yaml.YAMLError) as e:
+            raise ValueError(f"secrets-Datei {secrets_path} unlesbar: {e}") from e
 
     if not cfg.get("devices"):
         raise ValueError("config: 'devices' ist leer oder fehlt.")
