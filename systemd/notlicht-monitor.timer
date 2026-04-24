@@ -1,0 +1,12 @@
+[Unit]
+Description=Notlicht-Monitor alle 15 Minuten
+
+[Timer]
+# Erster Lauf 2 Minuten nach Boot, dann alle 15 Minuten.
+OnBootSec=2min
+OnUnitActiveSec=15min
+# Verpasste Laeufe nach Boot nachholen (z.B. nach Stromausfall):
+Persistent=true
+
+[Install]
+WantedBy=timers.target

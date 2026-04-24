@@ -1,0 +1,15 @@
+[Unit]
+Description=Notlicht-Monitor Check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=notlicht
+Group=notlicht
+ExecStart=/usr/bin/python3 /opt/notlicht-monitor/main.py
+WorkingDirectory=/opt/notlicht-monitor
+StandardOutput=journal
+StandardError=journal
+# Exit-Code 1 (= Stoerung) NICHT als systemd-Fehler werten:
+SuccessExitStatus=0 1

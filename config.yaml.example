@@ -1,0 +1,53 @@
+# /etc/notlicht-monitor/config.yaml
+# Rechte: chmod 600 – enthaelt SMTP-Passwort.
+
+devices:
+  - name: "Anlage 1 - Treppenhaus"
+    url:  "http://192.168.178.60"
+  - name: "Anlage 2 - Keller"
+    url:  "http://192.168.178.61"
+  - name: "Anlage 3 - Dachgeschoss"
+    url:  "http://192.168.178.62"
+
+http:
+  timeout_seconds: 10
+  retry_attempts: 3
+  retry_delays: [10, 30, 60]   # Sekunden zwischen den Versuchen
+
+smtp:
+  host: "mail.deinserver.de"
+  port: 465
+  use_ssl: true              # true = SMTPS (Port 465). false = STARTTLS (Port 587).
+  username: "notlicht@deinserver.de"
+  password: "CHANGE_ME"
+  from_address: "notlicht@deinserver.de"
+  from_name: "Notlicht-Monitor"
+
+recipients:
+  - "empfang@example.com"
+  - "technik@example.com"
+
+mail:
+  # Platzhalter: {status_emoji}, {date}, {device}
+  weekly_subject:   "{status_emoji} Wochenreport Notlicht - {date}"
+  alarm_subject:    "{status_emoji} ALARM Notlicht - {device}"
+  recovery_subject: "{status_emoji} Entwarnung Notlicht - {device}"
+
+  status_emoji_ok:    "🟢"
+  status_emoji_fault: "🔴"
+
+  # Standardtext. Wird verwendet, wenn custom_intro_text leer ist.
+  # Platzhalter im Text: {date}, {datetime}, {device}
+  intro_text: |
+    Wochenstatus der Sicherheitsbeleuchtung vom {date}.
+    Alle Anlagen wurden automatisch abgefragt. Details unten.
+
+  # Wenn gefuellt: ersetzt intro_text KOMPLETT.
+  custom_intro_text: ""
+
+  # Freier Text, wird ans Ende jeder Mail angehaengt. Leer = nichts.
+  custom_footer: ""
+
+schedule:
+  weekly_report_weekday: 1   # 1=Mo, 2=Di, ..., 7=So (ISO)
+  weekly_report_hour: 7      # Stunde 0-23, lokale Zeit

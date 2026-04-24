@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Test- und Laufzeitartefakte (lokale Probelaeufe)
+state.json
+*.log
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Eine echte, befuellte Config mit SMTP-Passwort darf NIE ins Repo.
+# Nur config.yaml.example wird getrackt.
+config.yaml
+*.yaml
+!config.yaml.example
+
+# Editor/OS-Kram
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Temporaeres
+*.tmp
+*.bak
+*~
