@@ -24,6 +24,18 @@ Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0
   Installations-, Anforderungs- und Technikkapitel.
 
 ### Hinzugefügt
+- **TEST-Mail-Funktion**: Neuer optionaler IMAP-Polling-Mode. Eine Mail mit
+  Subject `TEST` an das Notlicht-Postfach erzeugt eine Status-Antwort an
+  den Absender (Reply mit `In-Reply-To`/`References`-Headern für sauberes
+  Threading). Andere Mails werden stillschweigend gelöscht. Pro Lauf
+  bekommt jeder Absender max. eine Antwort (Reflection-Schutz). Dry-Run
+  liest, löscht aber nicht. Default: deaktiviert (`imap.enabled: false`).
+- Neues Modul `code/imap_handler.py`.
+- Neue Config-Sektion `imap.*` mit automatischer Übernahme von SMTP-Werten,
+  wenn entsprechende Felder leer sind (gleicher Account = minimale Config).
+- Neuer Mail-Subject-Default `mail.test_response_subject`.
+- Neuer CLI-Parameter `--skip-imap` zum Deaktivieren des Pollings für einen
+  einzelnen Lauf.
 - `.gitignore`, `.editorconfig`, `CHANGELOG.md`.
 - `secrets.yaml.example` als Template für die separate Secrets-Datei.
 - `--secrets PATH` CLI-Parameter in `main.py` (Default: `secrets.yaml` neben der Config).

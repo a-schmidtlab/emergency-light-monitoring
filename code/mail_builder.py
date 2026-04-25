@@ -136,6 +136,34 @@ def build_alarm_body(snap: DeviceSnapshot, mail_cfg: dict,
     return "\n".join(parts)
 
 
+def build_test_response_body(snapshots: List[DeviceSnapshot], mail_cfg: dict,
+                             now: datetime, requester: str) -> str:
+    """Antwort auf eine TEST-Anfrage: aktueller Status aller Anlagen.
+
+    Inhaltlich aequivalent zum Wochenreport, vorne ergaenzt um eine kurze
+    Notiz, dass es sich um eine ausgeloeste Test-Antwort handelt.
+    """
+    parts = [
+        f"Test-Antwort auf TEST-Anfrage von {requester}",
+        f"vom {now.strftime('%d.%m.%Y %H:%M:%S')}.",
+        "",
+        "Aktueller Status der Notlichtanlagen:",
+        "",
+    ]
+    all_ok = all(s.is_ok for s in snapshots)
+    parts.append(f"GESAMTSTATUS: {'ALLE OK' if all_ok else 'STOERUNG'}")
+    parts.append("")
+    for snap in snapshots:
+        parts.append(format_device_block(snap))
+        parts.append("")
+    f = _footer(mail_cfg)
+    if f:
+        parts.append(f)
+    parts.append("")
+    parts.append(f"-- Notlicht-Monitor, Test-Antwort {now.strftime('%d.%m.%Y %H:%M:%S')}")
+    return "\n".join(parts)
+
+
 def build_recovery_body(snap: DeviceSnapshot, mail_cfg: dict,
                         now: datetime) -> str:
     parts = [

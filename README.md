@@ -29,6 +29,7 @@ Automatisches Monitoring für GFS-NETLIGHT-Sicherheitsbeleuchtungsanlagen. Läuf
    - 7.2 [Abschnitte in `config.yaml`](#72-abschnitte-in-configyaml)
    - 7.3 [Abschnitte in `secrets.yaml`](#73-abschnitte-in-secretsyaml)
    - 7.4 [Mailtext anpassen](#74-mailtext-anpassen)
+   - 7.5 [TEST-Mail-Funktion (optional)](#75-test-mail-funktion-optional)
 8. [Betrieb & Wartung](#8-betrieb--wartung)
 9. [Kommandozeilenparameter](#9-kommandozeilenparameter)
 10. [Anforderungen](#10-anforderungen)
@@ -132,6 +133,7 @@ Damit ist das Tool ein **zusätzliches Frühwarnsystem** zwischen den normgerech
 | Wöchentlicher Report, Störung vorhanden | 🔴 Wochenreport Notlicht - 24.04.2026 |
 | Anlage wechselt OK → Störung | 🔴 ALARM Notlicht - Anlage 1 |
 | Anlage wechselt Störung → OK | 🟢 Entwarnung Notlicht - Anlage 1 |
+| Antwort auf eingehende TEST-Mail (optional, s. [7.5](#75-test-mail-funktion-optional)) | 🟢 / 🔴 TEST-Antwort Notlicht - 24.04.2026 |
 
 **Kein Mail-Spam:** Bei durchgehender Störung gibt es genau *eine* Alarmmail, keine Wiederholungen. Erst wenn die Anlage wieder OK war und erneut in Störung geht, kommt die nächste Alarmmail.
 
@@ -356,6 +358,49 @@ Verfügbare Platzhalter in Textfeldern: `{date}`, `{datetime}`, `{device}`.
 
 Änderungen greifen beim nächsten Lauf; kein Dienst-Neustart nötig.
 
+### 7.5 TEST-Mail-Funktion (optional)
+
+Wenn aktiviert, pollt das Tool bei jedem 15-Minuten-Lauf das Notlicht-Postfach via IMAP. Wer eine Mail mit Subject `TEST` (case-insensitive, ohne führende/nachlaufende Leerzeichen) an dieses Postfach schickt, bekommt **als Reply den aktuellen Status der Anlagen** zurück — inhaltlich identisch mit dem Wochenreport.
+
+**Verhalten im Detail:**
+
+- **Subject `TEST` von einem beliebigen Absender** → Eine Antwort an genau diesen Absender (mit gesetztem `In-Reply-To`-Header für sauberes Threading).
+- **Mehrere TEST-Mails desselben Absenders im selben Lauf** → Genau eine Antwort, alle weiteren Mails werden gelöscht (Reflection-/Flood-Schutz).
+- **Anderes Subject** → Mail wird stillschweigend gelöscht. Es gibt **keine** „abgewiesen"-Bounce, weil das nur Spam-Backscatter erzeugen würde.
+- **Verarbeitete Mails** werden aus dem Postfach gelöscht (`delete_processed: true`, Default), damit sie nicht beim nächsten Lauf erneut verarbeitet werden.
+- Im **`--dry-run`** wird das Postfach gelesen und die geplante Antwort auf stdout gezeigt, aber **keine Mail gelöscht** — so kann eine TEST-Anfrage trockentestet werden, ohne sie zu konsumieren.
+
+**Konfiguration** (in `config.yaml`):
+
+```yaml
+imap:
+  enabled: true              # Default: false
+  host: ""                   # leer = wie smtp.host
+  port: 993
+  use_ssl: true
+  username: ""               # leer = wie smtp.username
+  folder: "INBOX"
+  test_subject: "TEST"
+  delete_processed: true
+```
+
+Das **IMAP-Passwort** gehört nach `secrets.yaml`:
+
+```yaml
+imap:
+  password: "DEIN_IMAP_PASSWORT_HIER"
+```
+
+Bei gleichem Account wie SMTP kann der ganze `imap`-Block in `secrets.yaml` weggelassen werden — `code/config.py` übernimmt dann automatisch `smtp.password`.
+
+**Sicherheits-Hinweis (wichtig!):** Diese Funktion gibt Anlagenstati an *jeden* Absender zurück, der das richtige Subject trifft. Die Adresse des Postfachs ist damit eine kleine Disclosure-Quelle — IPs, Messwerte und Meldungstexte deiner Anlagen werden an Anfragende geschickt. Daher:
+
+- Adresse nicht öffentlich verteilen (kein `mailto:`-Link auf Webseiten, keine Visitenkarten).
+- Die Adresse möglichst nur Personen geben, die die Information ohnehin sehen dürften (z. B. Hausverwaltung, Wartungsdienst, Hausmeister).
+- Wer das nicht will, lässt `imap.enabled: false` und nimmt stattdessen `--force-weekly` zum Testen.
+
+**Dienst-Mailbox aufräumen, wenn TEST-Mode aktiviert wird:** beim ersten Lauf werden *alle* Mails im Postfach durchgegangen — sortiere also vorher manuell, falls dort noch alte Mails liegen, die nicht gelöscht werden sollen.
+
 ---
 
 ## 8. Betrieb & Wartung
@@ -404,7 +449,8 @@ Greift beim nächsten 15-Minuten-Tick automatisch.
 | `--secrets PATH` | Abweichende Secrets-Datei (Default: `secrets.yaml` neben der Config) |
 | `--state PATH` | Abweichende State-Datei (Default `/var/lib/notlicht-monitor/state.json`) |
 | `--force-weekly` | Wochenreport jetzt senden, unabhängig vom Zeitplan |
-| `--dry-run` | Mails nicht senden, nur auf stdout ausgeben |
+| `--dry-run` | Mails nicht senden, nur auf stdout ausgeben. IMAP wird gelesen, aber das Postfach nicht geleert. |
+| `--skip-imap` | IMAP-Inbox in diesem Lauf gar nicht abfragen (unabhängig von `imap.enabled`) |
 
 ---
 
@@ -562,11 +608,12 @@ Stateful Python-Batchjob, alle 15 Minuten von einem systemd-Timer gestartet. Der
 | `main.py` | ~160 | Orchestrator. Lädt Config + State, iteriert Geräte, entscheidet über Mailversand, schreibt State zurück. Einziges Binary. |
 | `netlight_client.py` | ~140 | HTTP-Kommunikation mit einer Anlage. Retry-Logik. Produziert `DeviceSnapshot` inkl. OK-Bewertung und Abweichungsliste. Sprechende Fehlermeldungen für die Mail. |
 | `state.py` | ~60 | Persistenz des letzten bekannten Status pro Gerät sowie des letzten Wochenreport-Zeitstempels. Atomares Schreiben via `tmp`-Datei + `replace`. |
-| `mailer.py` | ~50 | Dünner SMTP-Wrapper um `smtplib`. Unterstützt SMTPS (465) und STARTTLS. |
-| `mail_builder.py` | ~130 | Plaintext-Mailbodies für die drei Mailtypen. HTML-Decoding der Meldungen via `html.parser`. |
-| `config.py` | ~80 | YAML laden, Defaults mergen, `secrets.yaml` überlagern, Pflichtfelder prüfen. |
+| `mailer.py` | ~70 | Dünner SMTP-Wrapper um `smtplib`. Unterstützt SMTPS (465) und STARTTLS, optionale Reply-Header. |
+| `mail_builder.py` | ~150 | Plaintext-Mailbodies für die vier Mailtypen (inkl. TEST-Antwort). HTML-Decoding der Meldungen via `html.parser`. |
+| `imap_handler.py` | ~140 | Optionale IMAP-Inbox-Verarbeitung für die `TEST`-Mail-Funktion. Subject-Decode, Pro-Lauf-Dedup, sichere Mail-Löschung. |
+| `config.py` | ~110 | YAML laden, Defaults mergen, `secrets.yaml` überlagern, Pflichtfelder prüfen, IMAP-Defaults von SMTP übernehmen. |
 
-**Gesamtumfang:** ca. 620 Zeilen Python ohne Kommentare. Keine eigenen Frameworks, keine Web-/DB-Abhängigkeiten.
+**Gesamtumfang:** ca. 760 Zeilen Python ohne Kommentare. Keine eigenen Frameworks, keine Web-/DB-Abhängigkeiten.
 
 ### 11.3 Datenfluss pro Lauf
 
@@ -760,6 +807,10 @@ Logs enthalten kein Passwort. Bei Fehlern werden die vollständigen URLs der Anl
 | Pi war aus zur geplanten Mailzeit | Report wird nach Boot nachgeholt (`Persistent=true`) |
 | State-Datei gelöscht oder korrupt | Neustart mit leerem State, keine fälschlichen Alarme |
 | Mailserver temporär offline | Fehler wird geloggt, Mails werden **nicht** nachgeholt |
+| IMAP aktiv, eingehende `TEST`-Mail | Eine Antwort an den Absender, Original wird gelöscht |
+| IMAP aktiv, mehrere `TEST`-Mails desselben Absenders im selben Lauf | Genau eine Antwort, alle weiteren werden stillschweigend gelöscht |
+| IMAP aktiv, Mail mit anderem Subject | Stillschweigende Löschung, keine Bounce |
+| IMAP aktiv, IMAP-Server offline | Fehler wird geloggt, normaler Lauf läuft trotzdem durch |
 
 ---
 

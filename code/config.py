@@ -34,9 +34,10 @@ DEFAULTS = {
         "retry_delays": [10, 30, 60],
     },
     "mail": {
-        "weekly_subject":   "{status_emoji} Wochenreport Notlicht - {date}",
-        "alarm_subject":    "{status_emoji} ALARM Notlicht - {device}",
-        "recovery_subject": "{status_emoji} Entwarnung Notlicht - {device}",
+        "weekly_subject":        "{status_emoji} Wochenreport Notlicht - {date}",
+        "alarm_subject":         "{status_emoji} ALARM Notlicht - {device}",
+        "recovery_subject":      "{status_emoji} Entwarnung Notlicht - {device}",
+        "test_response_subject": "{status_emoji} TEST-Antwort Notlicht - {date}",
         "status_emoji_ok":    "\U0001F7E2",  # gruener Kreis
         "status_emoji_fault": "\U0001F534",  # roter Kreis
         "intro_text": (
@@ -49,6 +50,20 @@ DEFAULTS = {
     "schedule": {
         "weekly_report_weekday": 1,   # 1=Montag (ISO: 1-7)
         "weekly_report_hour": 7,
+    },
+    "imap": {
+        # Default: aus. Erst aktivieren, wenn TEST-Mail-Funktion gewuenscht ist.
+        "enabled": False,
+        # Leer = identisch zu smtp.host (haeufiger Fall: gleicher Provider).
+        "host": "",
+        "port": 993,
+        "use_ssl": True,
+        # Leer = identisch zu smtp.username.
+        "username": "",
+        # Passwort kommt aus secrets.yaml unter imap.password; leer = smtp.password.
+        "folder": "INBOX",
+        "test_subject": "TEST",         # case-insensitive, getrimmt
+        "delete_processed": True,       # verarbeitete Mails aus Postfach loeschen
     },
 }
 
@@ -108,5 +123,24 @@ def load_config(path: Path, secrets_path: Optional[Path] = None) -> dict:
         raise ValueError("config: schedule.weekly_report_weekday muss 1..7 sein.")
     if not (0 <= int(sched["weekly_report_hour"]) <= 23):
         raise ValueError("config: schedule.weekly_report_hour muss 0..23 sein.")
+
+    # IMAP-Block: leere Felder von SMTP uebernehmen, damit der Default-Fall
+    # "gleicher Account wie SMTP" minimal konfigurierbar bleibt.
+    imap = cfg.setdefault("imap", {})
+    if imap.get("enabled"):
+        if not imap.get("host"):
+            imap["host"] = cfg["smtp"]["host"]
+        if not imap.get("username"):
+            imap["username"] = cfg["smtp"].get("username", "")
+        if not imap.get("password"):
+            imap["password"] = cfg["smtp"].get("password", "")
+        if not imap.get("host"):
+            raise ValueError("config: imap.host fehlt (und smtp.host ebenfalls).")
+        if not imap.get("username"):
+            raise ValueError("config: imap.username fehlt.")
+        if not imap.get("password"):
+            raise ValueError("config: imap.password fehlt (gehoert in secrets.yaml).")
+        if not imap.get("test_subject"):
+            raise ValueError("config: imap.test_subject darf nicht leer sein.")
 
     return cfg

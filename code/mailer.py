@@ -19,7 +19,7 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
-from typing import List
+from typing import List, Optional
 
 log = logging.getLogger(__name__)
 
@@ -38,12 +38,23 @@ class Mailer:
         self.use_ssl = use_ssl
         self.timeout = timeout
 
-    def send(self, recipients: List[str], subject: str, body: str):
+    def send(self, recipients: List[str], subject: str, body: str,
+             in_reply_to: Optional[str] = None,
+             references: Optional[str] = None):
+        """Mail verschicken.
+
+        in_reply_to/references: Optional. Setzen, wenn die Mail Reply auf eine
+        eingehende Nachricht ist (sauberes Threading in Mailclients).
+        """
         msg = EmailMessage()
         msg["From"] = formataddr((self.from_name, self.from_address))
         msg["To"] = ", ".join(recipients)
         msg["Subject"] = subject
         msg["Message-ID"] = make_msgid()
+        if in_reply_to:
+            msg["In-Reply-To"] = in_reply_to
+        if references:
+            msg["References"] = references
         msg.set_content(body)
 
         context = ssl.create_default_context()

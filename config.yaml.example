@@ -32,9 +32,10 @@ recipients:
 
 mail:
   # Platzhalter: {status_emoji}, {date}, {device}
-  weekly_subject:   "{status_emoji} Wochenreport Notlicht - {date}"
-  alarm_subject:    "{status_emoji} ALARM Notlicht - {device}"
-  recovery_subject: "{status_emoji} Entwarnung Notlicht - {device}"
+  weekly_subject:        "{status_emoji} Wochenreport Notlicht - {date}"
+  alarm_subject:         "{status_emoji} ALARM Notlicht - {device}"
+  recovery_subject:      "{status_emoji} Entwarnung Notlicht - {device}"
+  test_response_subject: "{status_emoji} TEST-Antwort Notlicht - {date}"
 
   status_emoji_ok:    "🟢"
   status_emoji_fault: "🔴"
@@ -54,3 +55,23 @@ mail:
 schedule:
   weekly_report_weekday: 1   # 1=Mo, 2=Di, ..., 7=So (ISO)
   weekly_report_hour: 7      # Stunde 0-23, lokale Zeit
+
+# OPTIONAL: TEST-Mail-Funktion.
+# Wer eine Mail mit Subject "TEST" an das Notlicht-Postfach schickt, bekommt
+# als Antwort den aktuellen Status der Anlagen zurueck. Andere Mails werden
+# stillschweigend geloescht.
+#
+# WARNUNG: Wenn aktiviert, kann JEDER, der das Postfach kennt, den Status
+# abfragen. Pro Lauf bekommt jeder Absender max. 1 Antwort (Reflection-Schutz),
+# trotzdem: Adresse nicht oeffentlich verteilen.
+imap:
+  enabled: false             # auf true setzen, um Funktion zu aktivieren
+  host: ""                   # leer = wie smtp.host
+  port: 993
+  use_ssl: true
+  username: ""               # leer = wie smtp.username
+  # password: gehoert in secrets.yaml unter imap.password
+  #           (leer in secrets.yaml = wie smtp.password)
+  folder: "INBOX"
+  test_subject: "TEST"       # Subject-Match (case-insensitive, getrimmt)
+  delete_processed: true     # alle verarbeiteten Mails aus dem Postfach loeschen

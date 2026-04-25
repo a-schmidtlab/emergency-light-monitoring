@@ -30,6 +30,7 @@ from netlight_client import NetlightClient
 from state import State
 from mailer import Mailer
 import mail_builder
+import imap_handler
 
 
 def setup_logging():
@@ -65,7 +66,11 @@ def main() -> int:
     parser.add_argument("--force-weekly", action="store_true",
                         help="Wochenreport jetzt senden (Test).")
     parser.add_argument("--dry-run", action="store_true",
-                        help="Mails nicht senden, nur auf stdout ausgeben.")
+                        help="Mails nicht senden, nur auf stdout ausgeben. "
+                             "IMAP-Inbox wird abgefragt, aber nicht geleert.")
+    parser.add_argument("--skip-imap", action="store_true",
+                        help="IMAP-Postfach in diesem Lauf nicht abfragen "
+                             "(unabhaengig von imap.enabled).")
     args = parser.parse_args()
 
     setup_logging()
@@ -126,6 +131,27 @@ def main() -> int:
             log.error("Mailversand fehlgeschlagen: %s", e)
             return False
 
+    def send_reply(to_addr: str, subject: str, body: str,
+                   in_reply_to: str = "") -> bool:
+        log.info("Versende Test-Antwort an %s: %s", to_addr, subject)
+        if args.dry_run:
+            print("\n=============== DRY RUN: TEST-ANTWORT ===========")
+            print("An:        ", to_addr)
+            print("Subject:   ", subject)
+            print("In-Reply-To:", in_reply_to or "-")
+            print("-------------------------------------------------")
+            print(body)
+            print("==================================================\n")
+            return True
+        try:
+            mailer.send([to_addr], subject, body,
+                        in_reply_to=in_reply_to or None,
+                        references=in_reply_to or None)
+            return True
+        except Exception as e:
+            log.error("Test-Antwort an %s fehlgeschlagen: %s", to_addr, e)
+            return False
+
     # --- Alarm/Entwarnung je Geraet (Status-Uebergang) ---
     for snap in snapshots:
         prev = state.was_ok(snap.name)
@@ -164,6 +190,39 @@ def main() -> int:
         body = mail_builder.build_weekly_body(snapshots, mail_cfg, now)
         if send(subject, body) and not args.dry_run:
             state.set_weekly_report_sent(now)
+
+    # --- IMAP: TEST-Mails verarbeiten ---
+    imap_cfg = cfg.get("imap", {})
+    if imap_cfg.get("enabled") and not args.skip_imap:
+        log.info("IMAP-Inbox wird abgefragt (%s@%s)...",
+                 imap_cfg["username"], imap_cfg["host"])
+        ibx = imap_handler.process_inbox(
+            host=imap_cfg["host"],
+            port=int(imap_cfg["port"]),
+            use_ssl=bool(imap_cfg.get("use_ssl", True)),
+            username=imap_cfg["username"],
+            password=imap_cfg["password"],
+            folder=imap_cfg.get("folder", "INBOX"),
+            test_subject=imap_cfg.get("test_subject", "TEST"),
+            delete_processed=bool(imap_cfg.get("delete_processed", True)),
+            dry_run=args.dry_run,
+        )
+        if ibx.error:
+            log.error("IMAP fehlgeschlagen: %s", ibx.error)
+        else:
+            log.info("IMAP: %d TEST-Anfrage(n), %d sonstige, %d Duplikate.",
+                     len(ibx.test_requests), ibx.other_count,
+                     ibx.duplicate_count)
+            all_ok = all(s.is_ok for s in snapshots)
+            for req in ibx.test_requests:
+                subject = mail_cfg["test_response_subject"].format(
+                    status_emoji=emoji_ok if all_ok else emoji_fault,
+                    date=now.strftime("%d.%m.%Y"),
+                )
+                body = mail_builder.build_test_response_body(
+                    snapshots, mail_cfg, now, requester=req.sender)
+                send_reply(req.sender, subject, body,
+                           in_reply_to=req.message_id)
 
     state.save()
 
