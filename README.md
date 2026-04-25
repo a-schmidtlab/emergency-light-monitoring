@@ -364,7 +364,7 @@ Wenn aktiviert, pollt das Tool bei jedem 15-Minuten-Lauf das Notlicht-Postfach v
 
 **Verhalten im Detail:**
 
-- **Subject `TEST` von einem beliebigen Absender** → Eine Antwort an genau diesen Absender (mit gesetztem `In-Reply-To`-Header für sauberes Threading).
+- **Subject `TEST` von einem beliebigen Absender** → Eine Antwort an genau diesen Absender (mit gesetztem `In-Reply-To`-Header für sauberes Threading). Wenn die eingehende Mail einen `Reply-To`-Header hat, wird dieser bevorzugt — Standard-Mailverhalten.
 - **Mehrere TEST-Mails desselben Absenders im selben Lauf** → Genau eine Antwort, alle weiteren Mails werden gelöscht (Reflection-/Flood-Schutz).
 - **Anderes Subject** → Mail wird stillschweigend gelöscht. Es gibt **keine** „abgewiesen"-Bounce, weil das nur Spam-Backscatter erzeugen würde.
 - **Verarbeitete Mails** werden aus dem Postfach gelöscht (`delete_processed: true`, Default), damit sie nicht beim nächsten Lauf erneut verarbeitet werden.

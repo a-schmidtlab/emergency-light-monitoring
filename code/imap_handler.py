@@ -42,8 +42,12 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class TestRequest:
-    """Eine bestaetigte TEST-Anfrage, die beantwortet werden soll."""
-    sender: str          # Email-Adresse des Absenders (RFC 5322)
+    """Eine bestaetigte TEST-Anfrage, die beantwortet werden soll.
+
+    sender ist die Adresse, an die geantwortet werden soll. Bevorzugt wird
+    der Reply-To-Header, falls vorhanden (Standard-Mailverhalten); sonst From.
+    """
+    sender: str          # Antwort-Empfaenger (Reply-To, sonst From)
     message_id: str      # Original Message-ID fuer In-Reply-To
     subject: str         # Originales (decodiertes) Subject
     uid: bytes           # IMAP-Sequenz-Nr. der Original-Mail
@@ -117,25 +121,32 @@ def process_inbox(host: str, port: int, use_ssl: bool,
 
             subject_dec = _decode_subject(msg.get("Subject"))
             from_addr = parseaddr(msg.get("From", ""))[1].strip().lower()
+            reply_to = parseaddr(msg.get("Reply-To", ""))[1].strip().lower()
+            # Reply-To bevorzugen (Standard-Mailverhalten), sonst From.
+            sender_for_reply = reply_to or from_addr
             msg_id = (msg.get("Message-ID") or "").strip()
 
             is_test = (_normalize_subject(subject_dec) == target_subject)
 
-            if is_test and from_addr:
-                if from_addr in seen_senders:
+            if is_test and sender_for_reply:
+                if sender_for_reply in seen_senders:
                     result.duplicate_count += 1
                     log.info("IMAP: weitere TEST-Mail von %s im selben Lauf - "
-                             "wird stillschweigend geloescht.", from_addr)
+                             "wird stillschweigend geloescht.", sender_for_reply)
                 else:
-                    seen_senders.add(from_addr)
+                    seen_senders.add(sender_for_reply)
                     result.test_requests.append(TestRequest(
-                        sender=from_addr,
+                        sender=sender_for_reply,
                         message_id=msg_id,
                         subject=subject_dec,
                         uid=num,
                     ))
-                    log.info("IMAP: TEST-Anfrage von %s entgegengenommen.",
-                             from_addr)
+                    if reply_to and reply_to != from_addr:
+                        log.info("IMAP: TEST-Anfrage von %s (Reply-To: %s) "
+                                 "entgegengenommen.", from_addr, reply_to)
+                    else:
+                        log.info("IMAP: TEST-Anfrage von %s entgegengenommen.",
+                                 sender_for_reply)
             else:
                 result.other_count += 1
                 log.info("IMAP: Mail ohne TEST-Subject von '%s' (Subject='%s') "
