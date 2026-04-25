@@ -1,19 +1,15 @@
 # Notlicht-Monitor
 
-Automatisches Monitoring für GFS-NETLIGHT-Sicherheitsbeleuchtungsanlagen. Läuft auf einem Raspberry Pi, fragt im 15-Minuten-Takt über die Weboberfläche der Anlagen deren Zustand ab, verschickt **Sofort-Alarme** bei Störungen und einen **wöchentlichen Statusreport** per E-Mail.
+Ein kleiner Hilfsdienst für drei Notlichtanlagen. Läuft auf einem alten Raspberry Pi, schaut jede Viertelstunde nach, ob die Anlagen noch beieinander sind, und schickt nur dann eine Mail, wenn sich etwas geändert hat. Einmal pro Woche kommt zusätzlich ein Sammelbericht.
 
-> **Wichtig — Lies [Abschnitt 14](#14-lizenz--haftungsausschluss), bevor du dich auf dieses Tool verlässt.**
-> Dieses Monitoring ist eine *zusätzliche* Hilfe und **kein Ersatz** für die gesetzlich vorgeschriebenen Prüfungen einer Notlichtanlage durch Fachpersonal (DIN EN 50172, VDE 0108, DIN EN 50171, VDE 0100-560, DGUV V3 u. a.).
+> **Bitte erst [Abschnitt 14](#14-lizenz--haftungsausschluss) lesen.**
+> Dieses Programm ersetzt **keine** der gesetzlich vorgeschriebenen Prüfungen einer Notlichtanlage durch Fachpersonal (DIN EN 50172, VDE 0108, DIN EN 50171, VDE 0100-560, DGUV V3 u. a.). Es ist eine zusätzliche Hilfe — mehr nicht.
 
 ---
 
 ## Inhaltsverzeichnis
 
-1. [Über Notlichtanlagen und warum Monitoring nötig ist](#1-über-notlichtanlagen-und-warum-monitoring-nötig-ist)
-   - 1.1 [Was eine Notlichtanlage macht](#11-was-eine-notlichtanlage-macht)
-   - 1.2 [Rechtlicher Rahmen in Deutschland](#12-rechtlicher-rahmen-in-deutschland)
-   - 1.3 [Warum wöchentliche Kontrolle](#13-warum-wöchentliche-kontrolle)
-   - 1.4 [Was dieses Programm tut — und was nicht](#14-was-dieses-programm-tut--und-was-nicht)
+1. [Worum es geht](#1-worum-es-geht)
 2. [Mailtypen](#2-mailtypen)
 3. [Projektstruktur](#3-projektstruktur)
 4. [Voraussetzungen](#4-voraussetzungen)
@@ -56,72 +52,15 @@ Automatisches Monitoring für GFS-NETLIGHT-Sicherheitsbeleuchtungsanlagen. Läuf
 
 ---
 
-## 1. Über Notlichtanlagen und warum Monitoring nötig ist
+## 1. Worum es geht
 
-### 1.1 Was eine Notlichtanlage macht
+Sicherheitsbeleuchtung ist die Sorte Lampe, die fast immer dunkel ist. Sie wartet — auf einen Stromausfall, einen Brand, auf einen Moment, in dem die anderen Lampen ausgehen und Menschen im Halbdunkel einen Weg nach draußen brauchen. Dass sie wirklich anspringt, weiß man erst, wenn man nachsieht. Bauteile altern schleichend; eine Sicherung kann auslösen, ohne dass es jemand mitbekommt; ein Bus zwischen Zentrale und Einzelleuchten kann wochenlang stumm sein, bevor es auffällt. Eine rote LED an der Zentrale hilft nur dem, der gerade in dem Raum steht.
 
-Eine **Sicherheitsbeleuchtungs-** oder **Notlichtanlage** sorgt dafür, dass bei Ausfall der allgemeinen Stromversorgung Fluchtwege, Treppenhäuser, Ausgänge und sicherheitsrelevante Arbeitsbereiche weiter beleuchtet bleiben — typischerweise für 1, 3 oder 8 Stunden aus einer zentralen Batterie.
+Der Gesetzgeber denkt das in Deutschland systematisch durch. Normen wie **DIN EN 50172** / **VDE 0108-100**, **EN 50171**, **VDE 0100-560**, die **DGUV Vorschrift 3** und die **ArbStättV** verlangen abgestufte Prüfungen — Sichtkontrolle täglich, Funktionstest der Umschaltung wöchentlich, Einzelleuchten monatlich, volle Batterieprüfung jährlich durch Fachpersonal. Verantwortlich ist der Betreiber, und im Ernstfall haftet er für ausbleibende Wartung sowohl zivil- wie strafrechtlich.
 
-Zentrale Bestandteile einer typischen Anlage:
+Drei Anlagen einmal pro Woche zu Fuß abzuklappern und in jedes Prüfbuch einen Strich zu setzen, dauert einen halben Vormittag. Praktischerweise misst sich jede dieser Anlagen ohnehin selbst: ein eingebauter Webserver liefert Spannungen, Ladeströme, Statusflags und etwaige Meldungen — eine geduldige, monotone Selbstvermessung, an die man andocken kann. Genau das tut dieses Programm: es fragt im Viertelstundentakt nach, vergleicht den Zustand mit dem letzten Mal, und meldet sich nur, wenn sich etwas geändert hat. Einmal pro Woche schickt es zusätzlich einen Sammelbericht — denn ein Schweigen, das niemand bemerkt, ist von einem Programmfehler nicht zu unterscheiden.
 
-- Eine oder mehrere **Zentralbatterien** (meist verschlossene Bleiakkumulatoren), in einem Batterieschrank zusammen mit
-- einer **Zentrale (CPS-Anlage)**, die Ladung, Umschaltung und Überwachung steuert,
-- einer Anzahl **Sicherheitsleuchten** (Rettungszeichen + Flucht­weg­beleuchtung),
-- einer **Selbstdiagnose**, die kontinuierlich Netz, Batterie, Einzelleuchten und Gesamtsystem überwacht.
-
-Bei den in diesem Projekt überwachten Geräten handelt es sich um das Modell **GFS NETLIGHT quattro** (Firmware V6.0), das seine Betriebsdaten über eine eingebaute Weboberfläche sichtbar macht — und genau daran dockt dieser Monitor an.
-
-### 1.2 Rechtlicher Rahmen in Deutschland
-
-Der **Betreiber einer Immobilie** ist gesetzlich verpflichtet, die Sicherheitsbeleuchtungsanlage **funktionsfähig zu halten, regelmäßig zu prüfen und die Prüfungen zu dokumentieren**. Relevante Regelwerke (nicht abschließend):
-
-| Norm / Vorschrift | Inhalt |
-|---|---|
-| **DIN EN 50172** / **DIN VDE 0108-100** | Anwendung, Betrieb, Prüfung und Wartung von Sicherheitsbeleuchtungsanlagen |
-| **DIN EN 50171** | Zentrale Stromversorgungssysteme für Sicherheitszwecke |
-| **DIN VDE 0100-560** | Errichten von Niederspannungsanlagen – Einrichtungen für Sicherheitszwecke |
-| **DGUV Vorschrift 3** | Prüfung elektrischer Anlagen und Betriebsmittel im gewerblichen Umfeld |
-| **ArbStättV § 4 Abs. 3, Anhang 2.3** | Arbeitsstättenverordnung: Sicherheitsbeleuchtung dort, wo Arbeitnehmer beim Ausfall der Allgemeinbeleuchtung besonderen Gefahren ausgesetzt wären |
-
-Die Normen verlangen — je nach Anlagentyp und Nutzungsart — typischerweise:
-
-- **Tägliche Sichtprüfung** der Meldeeinrichtung (soweit vorhanden).
-- **Wöchentliche Funktionsprüfung** der Umschaltung zwischen Netz- und Batteriebetrieb.
-- **Monatliche Kurzfunktionsprüfung** der einzelnen Leuchten.
-- **Jährliche Prüfung** der Batteriekapazität über die volle Nennbetriebsdauer durch Fachpersonal.
-
-Werden diese Prüfungen unterlassen, und es kommt im Ernstfall zu Personenschäden, weil Fluchtwege unbeleuchtet bleiben, haftet der Betreiber — zivil- wie strafrechtlich.
-
-### 1.3 Warum wöchentliche Kontrolle
-
-Zwischen den von Fachpersonal durchgeführten Wartungen liegt Zeit — Wochen bis Monate. In dieser Zeit kann eine Menge passieren:
-
-- **Batterien altern** schleichend. Ein Akku, der gestern noch den Nennstrom lieferte, kann heute tiefentladen sein, ohne dass es jemand sieht.
-- **Sicherungen** können auslösen. Eine getrennte Leitung zum Batterieschrank verwandelt die Anlage in einen stillen Sarg.
-- **Kommunikationsausfälle** auf dem Bus zwischen Zentrale und Leuchten bleiben unbemerkt, solange niemand aktiv schaut.
-- **Firmware-Fehler** oder **Sensordrift** können einzelne Anzeigen stehen lassen.
-
-Eine NETLIGHT-Anlage erkennt solche Zustände intern, zeigt sie aber nur lokal an: eine rote LED an der Zentrale, eine Meldung in der Weboberfläche. Ist niemand regelmäßig vor Ort (oder schaut in den richtigen Raum), fällt ein Problem erst beim nächsten Prüftermin auf — potenziell Monate später.
-
-Eine **wöchentliche Kontrolle** ist damit das Mindestintervall, in dem eine aufgetretene Störung noch zeitnah entdeckt und behoben werden kann — bevor sie durch Liegenbleiben zu einem handfesten Sicherheitsproblem wird. Die Wöchentlichkeit deckt sich mit dem, was die Normen für die Funktionsprüfung der Umschaltung verlangen.
-
-### 1.4 Was dieses Programm tut — und was nicht
-
-**Was es tut:**
-
-- Es fragt die Anlagen **automatisch alle 15 Minuten** ab.
-- Es erkennt **Statuswechsel OK ⇄ Störung** und meldet sie **sofort** per Mail.
-- Es versendet **wöchentlich** (Default: Montag 07:00) einen Gesamtreport mit allen Details.
-- Es dokumentiert jeden Lauf im systemd-Journal und liefert so einen zeitlichen Verlauf.
-
-**Was es ausdrücklich _nicht_ tut:**
-
-- Es löst **keine** Funktionstests oder Batterieprüfungen aus. Es liest nur passiv.
-- Es ersetzt **nicht** die normgerechten Prüfungen durch Fachpersonal.
-- Es ist **kein revisionssicheres** Prüfprotokoll im Sinne von DIN VDE 0108 — die Mails und das Journal sind informativ, nicht juristisch beweiskräftig.
-- Es greift **nicht steuernd** in die Anlage ein (kann es auch gar nicht).
-
-Damit ist das Tool ein **zusätzliches Frühwarnsystem** zwischen den normgerechten Prüfintervallen. Mehr nicht. Und weniger auch nicht.
+Was es **nicht** kann: nachsehen, ob die Lampen tatsächlich angehen. Es liest nur das, was die Anlage von sich selbst meldet — und was eine Maschine über sich selbst weiß, deckt sich nicht zwangsläufig mit dem, was über sie zu wissen wäre. Die normgerechten Sicht- und Funktionsprüfungen werden also nicht ersetzt; sie verschieben sich nur dorthin, wo sie wirklich gebraucht werden: ans Ende einer Mail, in der etwas auffällig geworden ist. Mehr soll dieses Programm nicht. Und weniger auch nicht.
 
 ---
 
