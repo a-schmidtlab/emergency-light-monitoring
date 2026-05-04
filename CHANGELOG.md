@@ -3,9 +3,47 @@
 Alle relevanten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
-## [Unreleased]
+## [Unreleased] — v0.3.0
+
+### Hinzugefügt
+- **Selbstüberwachung (`health.py`)**: Neues Modul überwacht den Monitor selbst —
+  nicht nur die Anlagen. Prüft bei jedem Lauf: systemd-Timer-Zustand via
+  `systemctl show` (erkennt `SubState=elapsed` + kein `NextElapseUSecMonotonic`,
+  das sog. „Timer-Einschlafen" unter systemd 257), Laufzeit-Lücken seit
+  `monitor_last_finished_iso`, Dateisystem-Schreibbarkeit und IMAP-Fehlerserie.
+  Befunde werden als strukturierte `FINDING`/`SUMMARY`-Logzeilen ausgegeben
+  (Logger `notlicht-health`). Bei CRITICAL optional Digest-Mail mit Cooldown.
+- **Neue State-Felder**: `monitor_last_finished_iso`, `monitor_last_exit_code`,
+  `health_last_alert_sent_iso`, `imap_error_streak` — rückwärtskompatibel.
+- **IMAP-Fehlerserie**: Wiederholte IMAP-Fehler werden in `state.json` gezählt
+  und als Health-Finding eskaliert (`imap_error_streak`).
+- **`health`-Config-Block**: Neue Sektion in `config.yaml.example` mit allen
+  Schwellen, Faktoren und Mail-Schaltern; Defaults in `config.py` (kein
+  Pflichtfeld — leerer oder fehlender Block = volle Defaults).
+- **`scripts/notlicht-monitor-deploy.sudoers`**: Vorlage für minimale
+  passwordless-sudo-Regeln (nur Deploy- und Test-Befehle), die den
+  automatisierten Deploy-Workflow von der Workstation ermöglichen.
+- **Mail-Subject-Default `mail.health_subject`** und Emojis
+  `health_emoji_warn` / `health_emoji_critical`.
 
 ### Geändert
+- **`systemd/notlicht-monitor.timer`**: `OnUnitActiveSec` → `OnUnitInactiveSec`
+  (robuster für `Type=oneshot` unter systemd 257; verhindert das beobachtete
+  Einschlafen des Timers nach einigen Tagen Betrieb).
+- **`netlight_client.py`**: Statusindex 6 (Testbetrieb) mit Wert `yellow`
+  wird jetzt als regulärer automatischer Selbsttest gewertet — kein Alarm,
+  keine Abweichungsmeldung. Andere Werte auf Index 6 bleiben Störung.
+  Neue Property `in_testbetrieb` für Downstream-Nutzung.
+- **`main.py`**: Mailer wird früher initialisiert (vor Netlight-Abfragen),
+  damit Selbstüberwachungs-Mails dieselbe Instanz nutzen. IMAP-Streak wird
+  nach jedem Lauf im State fortgeschrieben. `state.set_monitor_run_finished()`
+  am Ende jedes Laufs.
+- **`code/config.py`**: Validierung für `health.*`-Parameter (Faktoren,
+  IMAP-Streak-Schwellen).
+- **`recipients`** auf Produktivsystem: `beirat@spreefeld.org` ergänzt.
+
+### Geändert (vor diesem Commit)
+
 - Projektstruktur aufgeräumt: flache Duplikate im Root entfernt, Inhalte aus dem
   inneren `notlicht-monitor/`-Ordner auf die Projektebene hochgezogen (entspricht
   der in `README.md` dokumentierten Topologie).

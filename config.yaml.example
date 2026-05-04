@@ -75,3 +75,19 @@ imap:
   folder: "INBOX"
   test_subject: "TEST"       # Subject-Match (case-insensitive, getrimmt)
   delete_processed: true     # alle verarbeiteten Mails aus dem Postfach loeschen
+
+# Selbstueberwachtung — erkennt z.B. systemd-Timer ohne weiteren Start, zu lange Luecken
+# ohne erfolgreichen Monitor-Lauf oder wiederholte IMAP-Fehler. Logs: Logger
+# notlicht-health im Journal. Optional Mail bei CRITICAL (Cooldown siehe alert_cooldown_hours).
+health:
+  enabled: true
+  timer_unit: notlicht-monitor.timer
+  expected_interval_minutes: 15
+  gap_warning_factor: 2
+  gap_critical_factor: 4
+  alert_on_findings: true
+  alert_critical: true
+  alert_warning: false
+  alert_cooldown_hours: 24
+  imap_failure_warning_after: 2
+  imap_failure_critical_after: 5

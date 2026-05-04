@@ -15,6 +15,8 @@
 Persistenter State in JSON:
 - letzter bekannter OK/Stoerung-Status pro Geraet (fuer Alarm-Diff)
 - Zeitpunkt des letzten Wochenreports (damit keiner doppelt rausgeht)
+- monitor_last_finished_iso — Selbstueberwachung: Abstand zwischen Laeufen (Gap)
+- optional: Health-Mail-Cooldown, IMAP-Fehlerserie
 """
 import json
 import logging
@@ -77,3 +79,40 @@ class State:
             "was_ok": bool(is_ok),
             "last_check": when.isoformat(),
         }
+
+    # --- Monitor-Selbstueberwachung (Zwischen zweier Lauf-Zyklen persistiert)
+    def monitor_last_finished(self) -> Optional[datetime]:
+        ts = self.data.get("monitor_last_finished_iso")
+        if not ts:
+            return None
+        try:
+            return datetime.fromisoformat(ts)
+        except ValueError:
+            return None
+
+    def set_monitor_run_finished(self, when: datetime, exit_code: int) -> None:
+        self.data["monitor_last_finished_iso"] = when.isoformat()
+        self.data["monitor_last_exit_code"] = int(exit_code)
+
+    def health_last_alert_sent(self) -> Optional[datetime]:
+        ts = self.data.get("health_last_alert_sent_iso")
+        if not ts:
+            return None
+        try:
+            return datetime.fromisoformat(ts)
+        except ValueError:
+            return None
+
+    def set_health_alert_sent(self, when: datetime) -> None:
+        self.data["health_last_alert_sent_iso"] = when.isoformat()
+
+    def imap_error_streak(self) -> int:
+        return int(self.data.get("imap_error_streak", 0))
+
+    def bump_imap_error_streak(self) -> int:
+        n = self.imap_error_streak() + 1
+        self.data["imap_error_streak"] = n
+        return n
+
+    def reset_imap_error_streak(self) -> None:
+        self.data["imap_error_streak"] = 0

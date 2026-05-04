@@ -38,6 +38,12 @@ DEFAULTS = {
         "alarm_subject":         "{status_emoji} ALARM Notlicht - {device}",
         "recovery_subject":      "{status_emoji} Entwarnung Notlicht - {device}",
         "test_response_subject": "{status_emoji} TEST-Antwort Notlicht - {date}",
+        "health_subject": (
+            "{severity_emoji} Selbstueberwachung Notlicht-Monitor "
+            "[{severity}] ({hostname})"
+        ),
+        "health_emoji_warn":    "\U0001F7E1",    # gelber Kreis
+        "health_emoji_critical": "\U0001F534",  # roter Kreis
         "status_emoji_ok":    "\U0001F7E2",  # gruener Kreis
         "status_emoji_fault": "\U0001F534",  # roter Kreis
         "intro_text": (
@@ -64,6 +70,25 @@ DEFAULTS = {
         "folder": "INBOX",
         "test_subject": "TEST",         # case-insensitive, getrimmt
         "delete_processed": True,       # verarbeitete Mails aus Postfach loeschen
+    },
+    "health": {
+        # Selbstueberwachung (health.py / Logger notlicht-health)
+        "enabled": True,
+        "timer_unit": "notlicht-monitor.timer",
+        "service_unit": "notlicht-monitor.service",
+        "expected_interval_minutes": 15,
+        "gap_warning_factor": 2.0,     # Warnung ab Interval * factor
+        "gap_critical_factor": 4.0,
+        "systemctl_bin": "/bin/systemctl",
+        "systemctl_timeout_seconds": 10,
+        # Mail nur bei kritischen Befunden (Default), Warnungen nur im Journal —
+        # alert_warning:true sonst Spam-Risiko
+        "alert_on_findings": True,
+        "alert_critical": True,
+        "alert_warning": False,
+        "alert_cooldown_hours": 24,
+        "imap_failure_warning_after": 2,
+        "imap_failure_critical_after": 5,
     },
 }
 
@@ -142,5 +167,22 @@ def load_config(path: Path, secrets_path: Optional[Path] = None) -> dict:
             raise ValueError("config: imap.password fehlt (gehoert in secrets.yaml).")
         if not imap.get("test_subject"):
             raise ValueError("config: imap.test_subject darf nicht leer sein.")
+
+    hcfg = cfg.get("health")
+    if hcfg:
+        iw = float(hcfg.get("gap_warning_factor", 2.0))
+        ic = float(hcfg.get("gap_critical_factor", 4.0))
+        if iw < 1.0 or ic < 1.0:
+            raise ValueError("config: health.gap_*_factor muss >= 1 sein.")
+        if ic < iw:
+            raise ValueError(
+                "config: health.gap_critical_factor muss >= gap_warning_factor sein."
+            )
+        if int(hcfg.get("imap_failure_critical_after", 5)) < int(
+            hcfg.get("imap_failure_warning_after", 2)
+        ):
+            raise ValueError(
+                "config: imap_failure_critical_after muss >= imap_failure_warning_after."
+            )
 
     return cfg

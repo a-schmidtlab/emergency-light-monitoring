@@ -2,9 +2,13 @@
 Description=Notlicht-Monitor alle 15 Minuten
 
 [Timer]
-# Erster Lauf 2 Minuten nach Boot, dann alle 15 Minuten.
+# Erster Lauf 2 Minuten nach Boot, dann alle 15 Minuten nach Ende des letzten Laufs.
+# Hinweis: Bei Type=oneshot ist OnUnitInactiveSec robuster als OnUnitActiveSec
+# (auf systemd 257 kam es vor, dass der Timer nach einigen Tagen mit
+# NextElapseUSecMonotonic=infinity / SubState=elapsed keine weiteren Starttermine
+# mehr gesetzt hat — dann liefen weder Wochenreport noch IMAP-Polling).
 OnBootSec=2min
-OnUnitActiveSec=15min
+OnUnitInactiveSec=15min
 # Verpasste Laeufe nach Boot nachholen (z.B. nach Stromausfall):
 Persistent=true
 

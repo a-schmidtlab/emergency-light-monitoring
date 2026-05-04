@@ -18,6 +18,7 @@ Laeuft alle 15 Minuten via systemd-Timer. Entscheidet pro Lauf:
   - Sofort-Alarm bei Uebergang OK -> Stoerung
   - Entwarnung  bei Uebergang Stoerung -> OK
   - Wochenreport am konfigurierten Wochentag/Stunde, genau 1x pro Kalenderwoche
+  - Selbstueberwachung (journal: notlicht-health, optional Warn-Mail)
 """
 import argparse
 import logging
@@ -31,6 +32,13 @@ from state import State
 from mailer import Mailer
 import mail_builder
 import imap_handler
+from health import (
+    HealthReport,
+    augment_imap_streak,
+    collect_startup_health,
+    log_health_report,
+    maybe_send_health_alert,
+)
 
 
 def setup_logging():
@@ -78,8 +86,33 @@ def main() -> int:
 
     secrets_path = Path(args.secrets) if args.secrets else None
     cfg = load_config(Path(args.config), secrets_path)
-    state = State(Path(args.state))
+    state_path = Path(args.state)
+    state = State(state_path)
     now = datetime.now().astimezone()
+    hc = cfg["health"]
+
+    # --- Mailer / Send-Helfer frueh (auch fuer Selbstueberwachungs-Mails) ---
+    smtp = cfg["smtp"]
+    mailer = Mailer(
+        host=smtp["host"],
+        port=int(smtp["port"]),
+        username=smtp.get("username", ""),
+        password=smtp.get("password", ""),
+        from_address=smtp["from_address"],
+        from_name=smtp.get("from_name", smtp["from_address"]),
+        use_ssl=bool(smtp.get("use_ssl", True)),
+    )
+    mail_cfg = cfg["mail"]
+    recipients = cfg["recipients"]
+    emoji_ok    = mail_cfg["status_emoji_ok"]
+    emoji_fault = mail_cfg["status_emoji_fault"]
+
+    # --- Selbstueberwachung: systemd/Gap/Infrastruktur (vor Netlight-Calls)
+    if hc.get("enabled", True):
+        health_report = collect_startup_health(hc, state, state_path, now)
+    else:
+        health_report = HealthReport()
+        log.info("Selbstueberwachung aus (health.enabled=false).")
 
     # --- Geraete abfragen ---
     http_cfg = cfg["http"]
@@ -97,22 +130,6 @@ def main() -> int:
         if not snap.is_ok:
             for a in snap.abweichungen:
                 log.warning("  -> %s", a)
-
-    # --- Mailer ---
-    smtp = cfg["smtp"]
-    mailer = Mailer(
-        host=smtp["host"],
-        port=int(smtp["port"]),
-        username=smtp.get("username", ""),
-        password=smtp.get("password", ""),
-        from_address=smtp["from_address"],
-        from_name=smtp.get("from_name", smtp["from_address"]),
-        use_ssl=bool(smtp.get("use_ssl", True)),
-    )
-    mail_cfg = cfg["mail"]
-    recipients = cfg["recipients"]
-    emoji_ok    = mail_cfg["status_emoji_ok"]
-    emoji_fault = mail_cfg["status_emoji_fault"]
 
     def send(subject: str, body: str) -> bool:
         log.info("Versende: %s", subject)
@@ -193,7 +210,9 @@ def main() -> int:
 
     # --- IMAP: TEST-Mails verarbeiten ---
     imap_cfg = cfg.get("imap", {})
-    if imap_cfg.get("enabled") and not args.skip_imap:
+    imap_streak_for_health = state.imap_error_streak()
+    imap_enabled_cfg = bool(imap_cfg.get("enabled"))
+    if imap_enabled_cfg and not args.skip_imap:
         log.info("IMAP-Inbox wird abgefragt (%s@%s)...",
                  imap_cfg["username"], imap_cfg["host"])
         ibx = imap_handler.process_inbox(
@@ -209,10 +228,13 @@ def main() -> int:
         )
         if ibx.error:
             log.error("IMAP fehlgeschlagen: %s", ibx.error)
+            imap_streak_for_health = state.bump_imap_error_streak()
         else:
             log.info("IMAP: %d TEST-Anfrage(n), %d sonstige, %d Duplikate.",
                      len(ibx.test_requests), ibx.other_count,
                      ibx.duplicate_count)
+            state.reset_imap_error_streak()
+            imap_streak_for_health = 0
             all_ok = all(s.is_ok for s in snapshots)
             for req in ibx.test_requests:
                 subject = mail_cfg["test_response_subject"].format(
@@ -223,10 +245,38 @@ def main() -> int:
                     snapshots, mail_cfg, now, requester=req.sender)
                 send_reply(req.sender, subject, body,
                            in_reply_to=req.message_id)
+    elif imap_enabled_cfg and args.skip_imap:
+        # Lauf ohne IMAP (--skip-imap): Serie fuer Health nicht zuruecksetzen
+        imap_streak_for_health = state.imap_error_streak()
 
+    finished_at = datetime.now().astimezone()
+    if hc.get("enabled", True):
+        augment_imap_streak(health_report, hc, imap_enabled_cfg, imap_streak_for_health)
+        log_health_report(health_report)
+
+        def send_health_digest(subject: str, body: str) -> bool:
+            try:
+                mailer.send(recipients, subject, body)
+                return True
+            except Exception as e:
+                log.error("Health-Mail fehlgeschlagen: %s", e)
+                return False
+
+        maybe_send_health_alert(
+            hc,
+            health_report,
+            mail_cfg=mail_cfg,
+            send_func=send_health_digest,
+            state=state,
+            now=finished_at,
+            dry_run=args.dry_run,
+        )
+
+    exit_code = 0 if all(s.is_ok for s in snapshots) else 1
+    state.set_monitor_run_finished(finished_at, exit_code)
     state.save()
 
-    return 0 if all(s.is_ok for s in snapshots) else 1
+    return exit_code
 
 
 if __name__ == "__main__":

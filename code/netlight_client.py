@@ -87,6 +87,15 @@ class DeviceSnapshot:
     meldungen: List = field(default_factory=list)
 
     @property
+    def in_testbetrieb(self) -> bool:
+        """True, wenn die Anlage gerade einen automatischen Selbsttest faehrt
+        (Statusindex 6 = 'yellow'). Solche Test-Laeufe sind regulaerer Betrieb
+        und duerfen keinen Alarm ausloesen."""
+        if not self.reachable or len(self.status) < 7:
+            return False
+        return self.status[6] == "yellow"
+
+    @property
     def is_ok(self) -> bool:
         if not self.reachable:
             return False
@@ -94,6 +103,9 @@ class DeviceSnapshot:
             return False
         for idx, expected in STATUS_EXPECTED.items():
             actual = self.status[idx] if idx < len(self.status) else ""
+            # Testbetrieb=yellow ist ein normaler Selbsttest, keine Stoerung.
+            if idx == 6 and actual == "yellow":
+                continue
             if actual != expected:
                 return False
         return True
@@ -108,6 +120,8 @@ class DeviceSnapshot:
         for idx, expected in STATUS_EXPECTED.items():
             actual = self.status[idx] if idx < len(self.status) else ""
             label = STATUS_LABELS[idx]
+            if idx == 6 and actual == "yellow":
+                continue
             if expected == "green" and actual != "green":
                 out.append(f"{label}: nicht gruen (Wert: '{actual or 'leer'}')")
             elif expected == "" and actual != "":

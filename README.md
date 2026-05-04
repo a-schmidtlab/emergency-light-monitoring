@@ -30,6 +30,7 @@ Automatisches Monitoring für GFS-NETLIGHT-Sicherheitsbeleuchtungsanlagen. Läuf
    - 7.3 [Abschnitte in `secrets.yaml`](#73-abschnitte-in-secretsyaml)
    - 7.4 [Mailtext anpassen](#74-mailtext-anpassen)
    - 7.5 [TEST-Mail-Funktion (optional)](#75-test-mail-funktion-optional)
+   - 7.6 [Selbstüberwachung (health)](#76-selbstüberwachung-health)
 8. [Betrieb & Wartung](#8-betrieb--wartung)
 9. [Kommandozeilenparameter](#9-kommandozeilenparameter)
 10. [Anforderungen](#10-anforderungen)
@@ -134,6 +135,7 @@ Was eine Anlage über sich selbst meldet, ist nicht zwangsläufig dasselbe wie d
 | Anlage wechselt OK → Störung | 🔴 ALARM Notlicht - Anlage 1 |
 | Anlage wechselt Störung → OK | 🟢 Entwarnung Notlicht - Anlage 1 |
 | Antwort auf eingehende TEST-Mail (optional, s. [7.5](#75-test-mail-funktion-optional)) | 🟢 / 🔴 TEST-Antwort Notlicht - 24.04.2026 |
+| Selbstüberwachungs-Alarm (optional, s. [7.6](#76-selbstüberwachung-health)) | 🔴 Selbstueberwachung Notlicht-Monitor [CRITICAL] (wartung-Pi) |
 
 **Kein Mail-Spam:** Bei durchgehender Störung gibt es genau *eine* Alarmmail, keine Wiederholungen. Erst wenn die Anlage wieder OK war und erneut in Störung geht, kommt die nächste Alarmmail.
 
@@ -154,6 +156,8 @@ emergencylight-monitoring/
 │   ├── netlight_client.py   ← HTTP-Abfrage der Anlagen (nur lesend)
 │   ├── mail_builder.py      ← Erzeugt Mail-Bodies (Plaintext)
 │   ├── mailer.py            ← SMTP-Versand
+│   ├── imap_handler.py      ← Optionaler IMAP-Polling für TEST-Mail-Funktion
+│   ├── health.py            ← Selbstüberwachung (Timer, Lücken, IMAP-Streak)
 │   ├── state.py             ← Persistenz zwischen Läufen
 │   └── config.py            ← YAML-Config + Secrets laden & validieren
 │
@@ -162,9 +166,10 @@ emergencylight-monitoring/
 │   └── notlicht-monitor.timer
 │
 ├── scripts/                 ← Deployment-Helfer (optional)
-│   ├── install-on-pi.sh     ← Erstinstallation (läuft auf dem Pi)
-│   ├── deploy.sh            ← rsync-Push Workstation → Pi
-│   └── tail-log.sh          ← Live-Log via SSH
+│   ├── install-on-pi.sh                  ← Erstinstallation (läuft auf dem Pi)
+│   ├── deploy.sh                         ← rsync-Push Workstation → Pi
+│   ├── tail-log.sh                       ← Live-Log via SSH
+│   └── notlicht-monitor-deploy.sudoers   ← Vorlage für passwordless sudo (Deploy-Automatisierung)
 │
 └── docs/
     └── gfs-netlight-webui.png
@@ -329,6 +334,7 @@ Beim Start sucht das Programm automatisch nach `secrets.yaml` **neben** der Haup
 - **`mail`** — Betreffvorlagen, Standardtext, eigener Einleitungstext, Fußtext.
 - **`schedule`** — Wochentag (0=Montag) und Stunde des Reports.
 - **`http`** — Timeout, Anzahl Versuche, Pausen zwischen Versuchen.
+- **`health`** — Selbstüberwachung (Timer-Zustand, Lücken, IMAP-Streak). Siehe [7.6](#76-selbstüberwachung-health).
 
 Die Vorlage `config.yaml.example` ist vollständig kommentiert.
 
@@ -401,6 +407,45 @@ Bei gleichem Account wie SMTP kann der ganze `imap`-Block in `secrets.yaml` wegg
 
 **Dienst-Mailbox aufräumen, wenn TEST-Mode aktiviert wird:** beim ersten Lauf werden *alle* Mails im Postfach durchgegangen — sortiere also vorher manuell, falls dort noch alte Mails liegen, die nicht gelöscht werden sollen.
 
+### 7.6 Selbstüberwachung (health)
+
+Der Monitor überwacht sich selbst — nicht nur die Anlagen. Bei jedem Lauf prüft das Modul `health.py` (Logger: `notlicht-health`):
+
+| Prüfung | Was erkannt wird |
+|---|---|
+| **systemd-Timer-Zustand** | Timer `elapsed` ohne nächsten geplanten Start (genau das Problem vom 01.–04.05.2026: `NextElapseUSecMonotonic=infinity`) |
+| **Laufzeit-Lücke** | Abstand seit `monitor_last_finished_iso` im State überschreitet `expected_interval_minutes × gap_factor` |
+| **Dateisystem** | State-Verzeichnis nicht schreibbar, freier Speicherplatz (INFO) |
+| **IMAP-Fehlerserie** | Wiederholte IMAP-Fehler in aufeinanderfolgenden Läufen (`imap_error_streak`) |
+
+Jeder Befund erscheint als strukturierte Logzeile im Journal (Logger `notlicht-health`):
+
+```text
+FINDING code=TIMER_STALLED_NO_NEXT severity=CRITICAL msg=Timer ist 'elapsed' ohne ...
+SUMMARY findings=2 max_severity=CRITICAL (INFO/WARN/CRIT=1/0/1)
+```
+
+Optional wird bei **CRITICAL** eine **Digest-Mail** an alle `recipients` verschickt — mit Cooldown (`alert_cooldown_hours`, Default: 24 h), damit bei einem Dauerproblem kein Spam entsteht. Warnungen gehen nur ins Journal.
+
+**Konfiguration** (alle Werte haben Defaults — leerer `health:`-Block reicht):
+
+```yaml
+health:
+  enabled: true
+  timer_unit: notlicht-monitor.timer
+  expected_interval_minutes: 15
+  gap_warning_factor: 2        # Warnung ab Interval × 2 = 30 min ohne Lauf
+  gap_critical_factor: 4       # Critical ab Interval × 4 = 60 min ohne Lauf
+  alert_on_findings: true      # false = nur Journal, keine Mails
+  alert_critical: true         # Mail bei CRITICAL
+  alert_warning: false         # true = Mail auch bei WARNING (Spam-Risiko!)
+  alert_cooldown_hours: 24
+  imap_failure_warning_after: 2
+  imap_failure_critical_after: 5
+```
+
+**Hinweis:** Kein lokaler Wächter kann melden, wenn der Pi selbst keinen Strom hat. Für diesen Fall wäre ein externer Ping-Dienst (VPS, FRITZ!Box-Skript) als zweite Ebene sinnvoll — liegt außerhalb dieses Projekts.
+
 ---
 
 ## 8. Betrieb & Wartung
@@ -412,14 +457,22 @@ systemctl list-timers notlicht-monitor.timer
 # Live-Log
 journalctl -u notlicht-monitor.service -f
 
-# Manueller Lauf zum Testen
+# Manueller Lauf zum Testen (inkl. IMAP-Polling)
 sudo systemctl start notlicht-monitor.service
 
 # Wochenreport sofort senden (z. B. zum Testen)
 sudo -u notlicht python3 /opt/notlicht-monitor/main.py --force-weekly
 
+# Selbstüberwachungs-Log anzeigen
+journalctl -u notlicht-monitor.service | grep notlicht-health
+
 # State zurücksetzen: Anlagen als neue Baseline, keine fälschlichen Alarme
 sudo rm /var/lib/notlicht-monitor/state.json
+
+# Timer hängt (NextElapseUSecMonotonic=infinity)?
+sudo systemctl daemon-reload && sudo systemctl restart notlicht-monitor.timer
+sudo systemctl start notlicht-monitor.service  # einmalig anstoßen, damit NEXT gesetzt wird
+systemctl list-timers notlicht-monitor.timer   # NEXT-Spalte prüfen
 ```
 
 **Code-Update einspielen:**
@@ -490,7 +543,7 @@ Automatische, wiederkehrende Zustandsprüfung von drei Sicherheitsbeleuchtungsan
   - Statusindex 2 (Batteriebetrieb) = leer
   - Statusindex 3 (Sammelstörung) = leer
   - Statusindex 4 (Tiefentladung) = leer
-  - Statusindex 6 (Testbetrieb) = leer
+  - Statusindex 6 (Testbetrieb) = leer **oder `yellow`** — `yellow` bedeutet laufender automatischer Selbsttest der Anlage und ist regulärer Betrieb (kein Alarm). Andere Werte zählen als Störung.
 - **FA-6**: Jede Abweichung erzeugt eine Einzelmeldung im Mailtext (Bezeichnung + tatsächlicher Wert).
 - **FA-7**: Messwerte werden roh übernommen, mit Einheiten formatiert (V, Ah, A). Bei Index 5 (Ladestrom): negative Werte werden als „Entladestrom" bezeichnet (Originalverhalten der Visualisierung).
 - **FA-8**: Inhalt des Meldungsfeldes wird ausgelesen. HTML wird zu Plaintext konvertiert. Leeres Array → „(keine Meldungen)".
@@ -605,34 +658,38 @@ Stateful Python-Batchjob, alle 15 Minuten von einem systemd-Timer gestartet. Der
 
 | Modul | Zeilen | Aufgabe |
 |---|---|---|
-| `main.py` | ~160 | Orchestrator. Lädt Config + State, iteriert Geräte, entscheidet über Mailversand, schreibt State zurück. Einziges Binary. |
-| `netlight_client.py` | ~140 | HTTP-Kommunikation mit einer Anlage. Retry-Logik. Produziert `DeviceSnapshot` inkl. OK-Bewertung und Abweichungsliste. Sprechende Fehlermeldungen für die Mail. |
-| `state.py` | ~60 | Persistenz des letzten bekannten Status pro Gerät sowie des letzten Wochenreport-Zeitstempels. Atomares Schreiben via `tmp`-Datei + `replace`. |
+| `main.py` | ~280 | Orchestrator. Lädt Config + State, führt Health-Check durch, iteriert Geräte, entscheidet über Mailversand, schreibt State zurück. Einziges Binary. |
+| `netlight_client.py` | ~160 | HTTP-Kommunikation mit einer Anlage. Retry-Logik. Produziert `DeviceSnapshot` inkl. OK-Bewertung und Abweichungsliste. Testbetrieb=yellow wird als normaler Selbsttest gewertet (kein Alarm). |
+| `health.py` | ~460 | Selbstüberwachung: prüft systemd-Timer-Zustand via `systemctl show`, Laufzeit-Lücken (State-basiert), Dateisystem und IMAP-Fehlerserie. Strukturierte `FINDING`/`SUMMARY`-Logzeilen. Optional Digest-Mail bei CRITICAL. |
+| `state.py` | ~110 | Persistenz: letzter Gerätestatus, Wochenreport-Zeitstempel, Health-Cooldown, IMAP-Fehlerserie, `monitor_last_finished_iso`. Atomares Schreiben. |
 | `mailer.py` | ~70 | Dünner SMTP-Wrapper um `smtplib`. Unterstützt SMTPS (465) und STARTTLS, optionale Reply-Header. |
-| `mail_builder.py` | ~150 | Plaintext-Mailbodies für die vier Mailtypen (inkl. TEST-Antwort). HTML-Decoding der Meldungen via `html.parser`. |
+| `mail_builder.py` | ~150 | Plaintext-Mailbodies für alle Mailtypen (inkl. TEST-Antwort und Health-Digest). HTML-Decoding der Meldungen via `html.parser`. |
 | `imap_handler.py` | ~140 | Optionale IMAP-Inbox-Verarbeitung für die `TEST`-Mail-Funktion. Subject-Decode, Pro-Lauf-Dedup, sichere Mail-Löschung. |
-| `config.py` | ~110 | YAML laden, Defaults mergen, `secrets.yaml` überlagern, Pflichtfelder prüfen, IMAP-Defaults von SMTP übernehmen. |
+| `config.py` | ~160 | YAML laden, Defaults mergen (inkl. `health`-Block), `secrets.yaml` überlagern, Pflichtfelder prüfen, IMAP- und Health-Defaults setzen und validieren. |
 
-**Gesamtumfang:** ca. 760 Zeilen Python ohne Kommentare. Keine eigenen Frameworks, keine Web-/DB-Abhängigkeiten.
+**Gesamtumfang:** ca. 1 500 Zeilen Python ohne Kommentare. Keine eigenen Frameworks, keine Web-/DB-Abhängigkeiten.
 
 ### 11.3 Datenfluss pro Lauf
 
 1. **Config laden** (`/etc/notlicht-monitor/config.yaml`) → validiertes `dict`. Daneben ggf. `secrets.yaml` drübermergen.
-2. **State laden** (`/var/lib/notlicht-monitor/state.json`) → `State`-Objekt, enthält `last_weekly_report` und `devices[name].was_ok`.
-3. **Iteration über Geräte**:
+2. **State laden** (`/var/lib/notlicht-monitor/state.json`) → `State`-Objekt.
+3. **Selbstüberwachung** (`health.py`): systemd-Timer-Zustand, Laufzeit-Lücke, Dateisystem. Befunde werden gesammelt und am Ende des Laufs geloggt/ggf. gemailt.
+4. **Iteration über Geräte**:
     1. Drei POST-Requests pro Gerät.
     2. Bei Fehler: Retry gemäß Config, dann `reachable=False`.
     3. Ergebnis landet in `DeviceSnapshot` mit abgeleiteten Properties `is_ok` und `abweichungen`.
-4. **Diff-Entscheidung pro Gerät**:
+5. **Diff-Entscheidung pro Gerät**:
     - `prev=None` → Baseline setzen, keine Mail.
     - `prev=True, now=False` → Alarmmail.
     - `prev=False, now=True` → Entwarnungsmail.
     - sonst → keine Mail.
     - State pro Gerät wird unabhängig vom Mailversand aktualisiert.
-5. **Wochenreport-Prüfung**: `should_send_weekly()` liefert True, wenn heute der konfigurierte Wochentag ist, die aktuelle Stunde ≥ konfigurierter Stunde, und der letzte Wochenreport nicht in derselben ISO-Kalenderwoche liegt. Oder wenn `--force-weekly` gesetzt ist.
-6. **Mailversand** jeweils über eine lokale `send()`-Funktion, die im Dry-Run-Modus nur auf stdout druckt.
-7. **State persistieren** (atomar).
-8. **Exit-Code**: `0` falls alle Geräte OK, sonst `1`. systemd ist so konfiguriert, dass Exit `1` kein Dienstfehler ist (`SuccessExitStatus=0 1`).
+6. **Wochenreport-Prüfung**: `should_send_weekly()` liefert True, wenn heute der konfigurierte Wochentag ist, die aktuelle Stunde ≥ konfigurierter Stunde, und der letzte Wochenreport nicht in derselben ISO-Kalenderwoche liegt. Oder wenn `--force-weekly` gesetzt ist.
+7. **Mailversand** jeweils über eine lokale `send()`-Funktion, die im Dry-Run-Modus nur auf stdout druckt.
+8. **IMAP-Polling** (wenn `imap.enabled: true`): Inbox abfragen, TEST-Antworten senden, Fehlerserie im State führen.
+9. **Health-Befunde loggen** (Logger `notlicht-health`), ggf. Digest-Mail (CRITICAL, Cooldown 24 h).
+10. **State persistieren** (atomar, inkl. `monitor_last_finished_iso`).
+11. **Exit-Code**: `0` falls alle Geräte OK, sonst `1`. systemd ist so konfiguriert, dass Exit `1` kein Dienstfehler ist (`SuccessExitStatus=0 1`).
 
 ### 11.4 NETLIGHT-Endpoints und Datenmodell
 
@@ -712,15 +769,28 @@ Datei `/var/lib/notlicht-monitor/state.json`:
 
 ```json
 {
-  "last_weekly_report": "2026-04-24T16:07:15.123456+02:00",
+  "last_weekly_report": "2026-05-04T16:55:54.000000+02:00",
+  "monitor_last_finished_iso": "2026-05-04T17:07:28.000000+02:00",
+  "monitor_last_exit_code": 0,
+  "health_last_alert_sent_iso": null,
+  "imap_error_streak": 0,
   "devices": {
-    "Anlage 1": {
+    "Haus 1": {
       "was_ok": true,
-      "last_check": "2026-04-24T16:22:00.000000+02:00"
+      "last_check": "2026-05-04T17:07:26.000000+02:00"
     }
   }
 }
 ```
+
+Neue Felder seit v0.2:
+
+| Feld | Bedeutung |
+|---|---|
+| `monitor_last_finished_iso` | ISO-Zeitstempel des letzten vollständig abgeschlossenen Laufs. Basis für die Lückenprüfung in `health.py`. |
+| `monitor_last_exit_code` | Exit-Code dieses Laufs (0 = alle OK, 1 = mind. eine Störung). |
+| `health_last_alert_sent_iso` | Zeitpunkt der zuletzt versendeten Health-Digest-Mail (Cooldown-Basis). |
+| `imap_error_streak` | Anzahl aufeinanderfolgender IMAP-Fehler. Wird bei Erfolg auf 0 zurückgesetzt. |
 
 Geschrieben atomar: `state.tmp` → `replace()` → `state.json`. Damit kann das Tool während des Schreibens nicht zu inkonsistentem State führen.
 
@@ -732,6 +802,8 @@ Geschrieben atomar: `state.tmp` → `replace()` → `state.json`. Damit kann das
 ├── netlight_client.py
 ├── mail_builder.py
 ├── mailer.py
+├── imap_handler.py
+├── health.py
 ├── state.py
 └── config.py
 
@@ -757,6 +829,9 @@ Geschrieben atomar: `state.tmp` → `replace()` → `state.json`. Damit kann das
 | Unerwartete Array-Länge | `DeviceSnapshot.is_ok` | Gerät zählt als Störung, Abweichung wird geloggt |
 | Mailversand-Fehler | `mailer.send` | Exception wird geloggt, State wird dennoch persistiert; nächster Lauf versucht nicht nachzusenden (bewusst, siehe FA-13). |
 | State-Datei korrupt | `State._load` | Warnung im Log, Start mit leerem State = alle Geräte als „erstmalig gesehen" (keine Mail) |
+| **Timer `SubState=elapsed`, kein `NextElapseUSecMonotonic`** | `health.py` via `systemctl show` | Finding `TIMER_STALLED_NO_NEXT` CRITICAL → Logzeile + ggf. Digest-Mail. Fix: `daemon-reload && restart timer`. |
+| **Lange Laufzeit-Lücke** (> `interval × gap_factor`) | `health.py` via `state.monitor_last_finished_iso` | Finding `MONITOR_GAP_WARN` oder `MONITOR_GAP_CRITICAL` → Logzeile + ggf. Digest-Mail. |
+| **IMAP-Fehler** (mehrfach in Folge) | `health.py` via `state.imap_error_streak` | Finding `IMAP_FAIL_STREAK_WARN/CRITICAL` → Logzeile + ggf. Digest-Mail. |
 
 ### 11.9 Leistung und Laufzeit
 
@@ -810,7 +885,10 @@ Logs enthalten kein Passwort. Bei Fehlern werden die vollständigen URLs der Anl
 | IMAP aktiv, eingehende `TEST`-Mail | Eine Antwort an den Absender, Original wird gelöscht |
 | IMAP aktiv, mehrere `TEST`-Mails desselben Absenders im selben Lauf | Genau eine Antwort, alle weiteren werden stillschweigend gelöscht |
 | IMAP aktiv, Mail mit anderem Subject | Stillschweigende Löschung, keine Bounce |
-| IMAP aktiv, IMAP-Server offline | Fehler wird geloggt, normaler Lauf läuft trotzdem durch |
+| IMAP aktiv, IMAP-Server offline | Fehler wird geloggt, normaler Lauf läuft trotzdem durch, IMAP-Fehlerserie im State hochgezählt |
+| Testbetrieb=yellow an Anlage (automatischer Selbsttest) | kein Alarm, kein State-Wechsel — gilt als normaler Betrieb |
+| systemd-Timer geplant keine nächsten Läufe mehr | nächster Lauf erkennt es via `systemctl show` → CRITICAL-Finding + Digest-Mail (einmalig pro Cooldown) |
+| Lange Pause ohne Monitor-Lauf (Pi aus, Stromausfall) | Laufzeit-Lücke > Schwelle → WARNING oder CRITICAL in Journal, ggf. Digest-Mail nach Neustart |
 
 ---
 

@@ -1,0 +1,31 @@
+# /etc/sudoers.d/notlicht-monitor-deploy
+# Erlaubt User axel passwordless sudo NUR fuer die exakten Befehle, die der
+# Deploy- und Test-Workflow von der Cursor-Workstation aus braucht.
+# Wildcards sind bewusst eng gefasst, damit kein Pfad-Traversal moeglich ist.
+#
+# Diese Datei wurde von einem Cursor-Agent vorbereitet. Aktivierung mit:
+#   sudo visudo -cf /tmp/notlicht-monitor-deploy.sudoers \
+#     && sudo install -m 0440 -o root -g root \
+#          /tmp/notlicht-monitor-deploy.sudoers \
+#          /etc/sudoers.d/notlicht-monitor-deploy
+#
+# Entfernen mit:
+#   sudo rm /etc/sudoers.d/notlicht-monitor-deploy
+
+Cmnd_Alias NOTLICHT_DEPLOY = \
+    /usr/bin/install -m 0644 /tmp/notlicht-monitor-src/code/[a-zA-Z_]*.py /opt/notlicht-monitor/, \
+    /usr/bin/chmod 755 /opt/notlicht-monitor/main.py, \
+    /usr/bin/install -m 0644 /tmp/notlicht-monitor-src/systemd/notlicht-monitor.service /etc/systemd/system/, \
+    /usr/bin/install -m 0644 /tmp/notlicht-monitor-src/systemd/notlicht-monitor.timer /etc/systemd/system/, \
+    /usr/bin/systemctl daemon-reload, \
+    /usr/bin/systemctl restart notlicht-monitor.timer, \
+    /usr/bin/systemctl start notlicht-monitor.service, \
+    /usr/bin/systemctl status notlicht-monitor.service, \
+    /usr/bin/systemctl status notlicht-monitor.timer, \
+    /usr/bin/systemctl list-timers notlicht-monitor.timer, \
+    /usr/bin/install -m 0600 -o notlicht -g notlicht /tmp/notlicht-monitor-config.yaml.new /etc/notlicht-monitor/config.yaml, \
+    /usr/bin/cp -p /etc/notlicht-monitor/config.yaml /etc/notlicht-monitor/config.yaml.bak.[0-9]*, \
+    /usr/bin/cat /etc/notlicht-monitor/config.yaml
+
+axel ALL=(root)     NOPASSWD: NOTLICHT_DEPLOY
+axel ALL=(notlicht) NOPASSWD: /usr/bin/python3 /opt/notlicht-monitor/main.py *
